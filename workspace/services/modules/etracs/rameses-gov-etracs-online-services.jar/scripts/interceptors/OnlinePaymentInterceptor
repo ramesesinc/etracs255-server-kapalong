@@ -1,0 +1,45 @@
+import com.rameses.annotations.*; 
+
+class OnlinePaymentInterceptor {
+	
+	@Env 
+	def env; 
+
+	@Service('OrgService')
+	def orgSvc; 
+
+	@Service('ReportParameterService')
+	def reportSvc; 
+
+	@Before( pattern="OnlinePaymentService.getReceipt", index=-999999 )
+	public void beforeGetReceipt( evt ) { 
+		try {
+			def org = orgSvc.getRoot(); 
+			if ( !org?.objid ) return; 
+
+			env.ORGID = org.objid;
+			env.ORGCODE = org.code; 
+			env.ORGNAME = org.name; 
+			env.ORGCLASS = org.orgclass; 
+			env.ORGTXNCODE = org.txncode; 
+			env.ORGROOT = org.root;
+		} 
+		catch(Throwable t) { 
+			t.printStackTrace(); 
+		} 
+	}
+
+
+	@After( pattern="OnlinePaymentService.getReceipt", index=999999 )
+	public void afterGetReceipt( evt ) { 
+		try {
+			def o = reportSvc.getStandardParameter(); 
+			evt.result.reportparams = o; 
+		}
+		catch(Throwable t) {
+			t.printStackTrace(); 
+			
+			evt.result.reportparams = [:]; 
+		}
+	} 
+}

@@ -1,0 +1,48 @@
+import com.rameses.annotations.*
+
+class EPaymentResolverService {
+
+    @Service("OnlinePaymentService")
+    def localSvc;
+
+    @DataContext("eor_paymentorder")
+    def po_db;
+
+    @DataContext("eor_paymentorder_paid")
+    def po_paid_db;
+
+    @DataContext("eor")
+    def eor_db;
+
+
+    @Service(value="epayment/CloudPaymentService", connection="cloud-server")
+    def cloudSvc;
+
+    @Service(value="OrgService", connection="local-admin-server")
+    def orgSvc;
+
+    @ProxyMethod
+    public def getList() {
+        def org = orgSvc.getRoot();
+        return cloudSvc.getUnpostedPaymentList( [orgcode: org.objid ]);
+    }
+
+    @ProxyMethod
+    public void resolve( p ) {  
+        // check first if the payment order is still in unpaid mode.
+        // if it is already paid then we only need to update the EOR in the cloud
+        def eorinfo = eor_db.find([ paymentrefid: p.paymentrefid ]).first(); 
+        if ( eorinfo?.objid ) {
+            def m = [:]; 
+            m.receiptid = eorinfo.objid; 
+            m.receiptno = eorinfo.receiptno; 
+            m.receiptdate = eorinfo.receiptdate; 
+            m.paymentrefid = eorinfo.paymentrefid;
+            cloudSvc.updatePaymentReceipt( m ); 
+        } 
+        else {
+            def r = localSvc.postPayment( p ); 
+            if ( r ) cloudSvc.updatePaymentReceipt( r );
+        } 
+    }  
+}

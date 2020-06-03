@@ -52,23 +52,7 @@ FROM cashreceiptitem ci
 WHERE ci.receiptid=$P{objid}
 
 [getNoncashPayments]
-select * 
-from ( 
-	select nc.objid as ncpid, bank.objid as bank_objid, bank.code as bank_code, bank.name as bank_name 
-	from cashreceiptpayment_noncash nc 
-		inner join checkpayment cp on cp.objid = nc.refid 
-		inner join bank on bank.objid = cp.bankid 
-	where nc.receiptid = $P{objid} 
-		and nc.reftype = 'CHECK'
-	union  
-	select nc.objid as ncpid, a.bank_objid, a.bank_code, a.bank_name  
-	from cashreceiptpayment_noncash nc 
-		inner join eftpayment e on e.objid = nc.refid 
-		inner join bankaccount a on a.objid = e.bankacctid 
-	where nc.receiptid = $P{objid} 
-		and nc.reftype = 'EFT'
-)t1, cashreceiptpayment_noncash nc 
-where nc.objid = t1.ncpid 
+SELECT * FROM cashreceiptpayment_noncash WHERE receiptid=$P{objid}
 
 [updateState]
 update cashreceipt set state=$P{state} where objid=$P{objid}

@@ -99,67 +99,82 @@ select
 		order by version desc limit 1 
 	) as permitno 
 from ( 
-	select  
-		ba.business_objid as businessid, ba.appyear, sum(decimalvalue) as amount 
-	from business_application ba 
-		inner join business_application_info bai on bai.applicationid=ba.objid 
-		inner join lob on lob.objid=bai.lob_objid 
-		inner join business b on b.objid=ba.business_objid 
-	where ba.appyear=$P{year} and ba.state in ('COMPLETED','RELEASE','PAYMENT') 
-		and (select count(*) from business_payment where applicationid=ba.objid and voided=0)>0  
-		and bai.attribute_objid in ('CAPITAL','GROSS')  
-		${filter} 
-	group by ba.business_objid, ba.appyear 
+	select businessid, appyear, sum(amount) as amount, sum(paymentcount) as paymentcount 
+	from ( 
+		select  
+			ba.business_objid as businessid, ba.appyear, decimalvalue as amount, 
+			(select count(objid) from business_payment where applicationid = ba.objid and voided = 0) as paymentcount 
+		from business_application ba 
+			inner join business b on b.objid = ba.business_objid 
+			inner join business_application_info bai on bai.applicationid = ba.objid 
+			inner join lob on lob.objid = bai.lob_objid 
+		where ba.appyear = $P{year} 
+			and b.permittype = $P{permittypeid} 
+			and ba.state in ( ${appstatefilter} ) 
+			and ba.apptype in ( ${apptypefilter} ) 
+			and bai.attribute_objid in ('CAPITAL','GROSS') 
+			and lob.classification_objid like $P{classificationid} 
+	)t0 
+	where 1=1 ${filter} 
+	group by businessid, appyear 
 )xx 
-	inner join business b on b.objid=xx.businessid 
+	inner join business b on b.objid = xx.businessid 
 order by xx.amount desc, b.tradename  
 limit ${topsize} 
 
 
 [getQtrlyPaidBusinessList]
 select 
-	b.bin, b.businessname, b.address_text as businessaddress, 
-	tmp2.balance, tmp2.q1, tmp2.q2, tmp2.q3, tmp2.q4 
+	t2.businessid, b.bin, b.tradename, b.businessname, b.address_text as businessaddress, 
+	sum(t2.amtdue) as amtdue, sum(t2.amtpaid) as amtpaid, sum(t2.balance) as balance, 
+	sum(t2.q1) as q1, sum(t2.q2) as q2, sum(t2.q3) as q3, sum(t2.q4) as q4, sum(t2.q1+t2.q2+t2.q3+t2.q4) as totalpaidqtr 
 from ( 
 	select 
-		businessid, sum(balance) as balance, 
-		sum(q1) as q1, sum(q2) as q2, sum(q3) as q3, sum(q4) as q4 
+		tt1.businessid, sum(br.amount) as amtdue, sum(br.amtpaid) as amtpaid, 
+		sum(br.amount-br.amtpaid) as balance, 0.0 as q1, 0.0 as q2, 0.0 as q3, 0.0 as q4 
 	from ( 
 		select 
-			ba.business_objid as businessid, 
-			(case when quarter(bpay.refdate)=1 then bpay.amount else 0.0 end) as q1, 
-			(case when quarter(bpay.refdate)=2 then bpay.amount else 0.0 end) as q2, 
-			(case when quarter(bpay.refdate)=3 then bpay.amount else 0.0 end) as q3, 	
-			(case when quarter(bpay.refdate)=4 then bpay.amount else 0.0 end) as q4,  
-			0.0 as balance 
-		from business_payment bpay 
-			inner join business_application ba on ba.objid = bpay.applicationid 
-			inner join business b on (b.objid = ba.business_objid and b.permittype = $P{permittypeid}) 
-		where bpay.refdate >= $P{startdate}  
-			and bpay.refdate <  $P{enddate} 
-			and bpay.voided = 0 
-			${filter} 
+			b.objid as businessid, ba.objid as applicationid, count(*) as icount 
+		from business_payment p 
+			inner join business_application ba on ba.objid = p.applicationid 
+			inner join business b on (b.objid = ba.business_objid and b.permittype='BUSINESS') 
+			inner join business_receivable br on br.applicationid = ba.objid 
+		where p.refdate >= $P{startdate} 
+			and p.refdate <  $P{enddate} 
+			and p.voided = 0 ${filter} ${taxfeetypefilter} 
+		group by b.objid, ba.objid 
+	)tt1  
+		inner join business_receivable br on br.applicationid = tt1.applicationid 
+	group by tt1.businessid 
 
-		union all 
+	union all 
 
+	select 
+		tt1.businessid, 0.0 as amtdue, 0.0 as amtpaid, 0.0 as balance,  
+		sum(case when tt1.imonth between 1 and 3 then tt1.amount else 0.0 end) as q1, 
+		sum(case when tt1.imonth between 4 and 6 then tt1.amount else 0.0 end) as q2, 
+		sum(case when tt1.imonth between 7 and 9 then tt1.amount else 0.0 end) as q3, 
+		sum(case when tt1.imonth between 10 and 12 then tt1.amount else 0.0 end) as q4 
+	from ( 
 		select 
-			ba.business_objid as businessid, 
-			0.0 as q1, 0.0 as q2, 0.0 as q3, 0.0 as q4, 
-			(br.amount - br.amtpaid) as balance 
-		from business_payment bpay 
-			inner join business_application ba on ba.objid = bpay.applicationid 
-			inner join business b on (b.objid = ba.business_objid and b.permittype = $P{permittypeid}) 
-			inner join business_receivable br on br.applicationid = bpay.applicationid 
-		where bpay.refdate >= $P{startdate} 
-			and bpay.refdate <  $P{enddate} 
-			and bpay.voided = 0 
-			${filter} 
+			b.objid as businessid, month(p.refdate) as imonth, 
+			sum(pp.amount + pp.surcharge + pp.interest) as amount 
+		from business_payment p 
+			inner join business_application ba on ba.objid = p.applicationid 
+			inner join business b on (b.objid = ba.business_objid and b.permittype='BUSINESS') 
+			inner join business_payment_item pp on pp.parentid = p.objid 
+			left join business_receivable br on br.objid = pp.receivableid 
+		where p.refdate >= $P{startdate} 
+			and p.refdate <  $P{enddate} 
+			and p.voided = 0 ${filter} ${taxfeetypefilter} 
+		group by b.objid, month(p.refdate) 
+	)tt1 
+	group by tt1.businessid 
 
-	)tmp1 
-	group by businessid 
-)tmp2 
-	inner join business b on b.objid = tmp2.businessid 
-order by b.businessname 
+)t2, business b 
+where b.objid = t2.businessid 
+group by t2.businessid, b.bin, b.tradename, b.businessname, b.address_text 
+order by b.businessname   
 
 
 [getEmployerList]
@@ -227,28 +242,34 @@ ORDER BY a.appyear, b.owner_name
 
 
 [getBPTaxFeeTopList]
-select 
-	businessid, appyear, tradename, businessaddress, ownername, owneraddress, 
-	sum(tax) as tax, sum(regfee) as regfee, sum(othercharge) as othercharge,
-	sum(tax + regfee + othercharge) as total, 
-	(
+select xx.*, (
 		select permitno from business_permit 
-		where businessid=xx.businessid and activeyear=xx.appyear and state='ACTIVE' 
+		where businessid = xx.businessid and activeyear = xx.appyear and state = 'ACTIVE' 
 		order by version desc limit 1 
 	) as permitno 
 from ( 
 	select 
-		ba.business_objid as businessid, ba.appyear, ba.tradename, 
-		ba.businessaddress, ba.ownername, ba.owneraddress, 
-		(case when br.taxfeetype='TAX' then br.amount else 0.0 end) as tax, 
-		(case when br.taxfeetype='REGFEE' then br.amount else 0.0 end) as regfee,
-		(case when br.taxfeetype='OTHERCHARGE' then br.amount else 0.0 end) as othercharge 
-	from business_application ba  
-		inner join business b on ba.business_objid=b.objid 
-		inner join business_receivable br on br.applicationid=ba.objid 
-	where ba.appyear=$P{year} and ba.state in ('RELEASE','COMPLETED')  
-		and br.iyear=ba.appyear ${filter} 
+		businessid, appyear, tradename, businessaddress, ownername, owneraddress, 
+		sum(tax) as tax, sum(regfee) as regfee, sum(othercharge) as othercharge, 
+		(sum(tax) + sum(regfee) + sum(othercharge)) as total, sum(paymentcount) as paymentcount 
+	from ( 
+		select 
+			ba.business_objid as businessid, ba.appyear, ba.tradename, 
+			ba.businessaddress, ba.ownername, ba.owneraddress, 
+			(case when br.taxfeetype='TAX' then br.amount else 0.0 end) as tax, 
+			(case when br.taxfeetype='REGFEE' then br.amount else 0.0 end) as regfee, 
+			(case when br.taxfeetype='OTHERCHARGE' then br.amount else 0.0 end) as othercharge, 
+			(select count(objid) from business_payment where applicationid = ba.objid and voided = 0) as paymentcount 
+		from business_application ba  
+			inner join business b on b.objid = ba.business_objid 
+			inner join business_receivable br on br.applicationid = ba.objid 
+		where ba.appyear = $P{year} 
+			and b.permittype = $P{permittypeid} 
+			and ba.state in ( ${appstatefilter} ) 
+			and ba.apptype in ( ${apptypefilter} ) 
+	)t0 
+	where 1=1 ${filter} 
+	group by businessid, appyear, tradename, businessaddress, ownername, owneraddress 
 )xx 
-group by businessid, appyear, tradename, businessaddress, ownername, owneraddress 
-order by sum(tax + regfee + othercharge) desc, tradename 
+order by total desc, tradename 
 limit ${topsize}  

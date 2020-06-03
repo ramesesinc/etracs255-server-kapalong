@@ -1,60 +1,139 @@
 import com.rameses.annotations.*;
-import com.rameses.common.*
-import com.rameses.util.*
+import com.rameses.common.*;
+import com.rameses.util.*;
 
 class CRAAFReportService {
+
+	@Env
+	def env; 
 
 	@ActiveDB('craaf_report')
 	def adb;
 
-	@Env
-	def env; 
- 
+	@DataContext('af')
+	def af_db;
+
+	@ProxyMethod
+	public def initReport( params ) {
+		def resp = [:]; 
+		resp.aflist = af_db.where('1=1').list(); 
+		return resp;
+	} 
 
 	@ProxyMethod
 	public def generateCraafData( params ) {
 
-		def data = [ items : getCraafData(params) ]; 
-		if ( !data.items ) throw new Exception("No record(s) found");
+		def data = [ reportdata : getCraafData(params) ]; 
+		if ( !data.reportdata ) throw new Exception("No record(s) found");
+
+		def periodbuff = new StringBuilder('FOR THE MONTH OF '); 
+		periodbuff.append( params.month.caption.toString()).append(' '+ params.year); 
+		if ( params.af?.objid ) {
+			periodbuff.append('   (AF# ').append( params.af.objid ).append(' ONLY)'); 
+		}
 
 		data.info = [ 
 			PREPAREDBY 		: env.FULLNAME,
 			PREPAREDBYTITLE : env.JOBTITLE,
-			PERIOD			: 'FOR THE MONTH OF ' + params.month.caption + ', ' + params.year 
+			PERIOD			: periodbuff.toString().toUpperCase() 
 		]; 
 		return data; 
 	}
-
-	@ProxyMethod
-	public def getFormControlList(  ) {
-		return [
-			[type:"integer", caption:'Year', name:'entity.year', required:true, preferredSize:'80,19', captionWidth:120],
-            [type:"combo", caption:'Month', name:'entity.month', items:'months', expression:'#{item.name}', preferredSize:'80,19', captionWidth:120],
-		]
-	}
-
 
 	private def getCraafData( params ) { 
 		def YMD = new java.text.SimpleDateFormat('yyyy-MM-dd'); 
 		def startdate = YMD.parse( params.year +'-'+ params.month.index.toString().padLeft(2, '0') +'-01' );
 		def enddate = DateUtil.add( startdate, '1M' ); 	
 
-		def list = adb.getCraafData([ startdate: startdate, enddate: enddate ]); 
-		list.eachWithIndex{ o,idx-> o.lineno = idx; }
+		def mm = [ startdate: startdate, enddate: enddate ]; 
+		mm.afid = (params.af?.objid ? params.af.objid : '%');
+		
+		def list = adb.getCraafData( mm ); 
 
-		def unissuedlist = list.findAll{( it.qtyissued==0 )} 
-		list.removeAll( unissuedlist ); 
+		def issuedlist = [];
+		def unissuedlist = [];
+		list.eachWithIndex{ o, idx-> 
+			o.lineno = idx; 
+			o.formno = o.afid;
 
-		list.findAll{ it.formtype != 'serial' }.each{
-			it.beginstartseries = it.beginendseries = null; 
-			it.issuedstartseries = it.issuedendseries = null; 
-			it.endingstartseries = it.endingendseries = null; 
-			it.receivedstartseries = it.receivedendseries = null; 
+			if ( !o.qtyreceived ) o.qtyreceived = 0; 
+			if ( !o.qtybegin ) o.qtybegin = 0; 
+			if ( !o.qtyissued ) o.qtyissued = 0; 
+			if ( !o.qtyending ) o.qtyending = 0; 
+
+			if ((o.qtyreceived + o.qtybegin + o.qtyissued + o.qtyending) == 0) {
+				// not a valid record and will ignore this entry
+				return; 
+			}
+
+			if ( o.qtyissued == 0 ) { 
+				unissuedlist << o; 
+			} else { 
+				issuedlist << o;
+			}
+
+			if ( o.qtybegin > 0 ) {
+				o.receivedendseries = o.receivedstartseries = null; 
+				o.qtyreceived = 0; 
+			}
+			
+			o.receivedstartseries = resolveSeriesValue( o.receivedstartseries ); 
+			o.receivedendseries = resolveSeriesValue( o.receivedendseries ); 
+			o.beginstartseries = resolveSeriesValue( o.beginstartseries ); 
+			o.beginendseries = resolveSeriesValue( o.beginendseries ); 
+			o.issuedstartseries = resolveSeriesValue( o.issuedstartseries ); 
+			o.issuedendseries = resolveSeriesValue( o.issuedendseries ); 
+			o.endingstartseries = resolveSeriesValue( o.endingstartseries ); 
+			o.endingendseries = resolveSeriesValue( o.endingendseries ); 
 		}
+		list.clear(); 
 
+		issuedlist.groupBy{[ ownerid: it.ownerid, formno: it.formno, prefix: it.prefix, suffix: it.suffix ]}.each{ k,v-> 
+			v.sort{ it.startseries } 
+
+			def items = v.findAll{ it.saled == 1 } 
+			items.each{
+				it.qtyreceived = it.qtyissued; 
+				it.receivedendseries = it.issuedendseries; 
+				it.receivedstartseries = it.issuedstartseries; 
+				it.beginstartseries = it.beginendseries = it.qtybegin = null; 
+			}
+			if ( params.condense_saled.toString().matches('true|1')) {
+				list.addAll( mergeStubs( items )); 				
+			} else {
+				list.addAll( items ); 
+			} 
+			v.removeAll( items ); 
+			items.clear(); 
+
+			items = v.findAll{ it.consumed == 1 } 
+			if ( params.condense_consumed.toString().matches('true|1')) {
+				list.addAll( mergeStubs( items )); 
+			} else {
+				list.addAll( items ); 
+			}
+			v.removeAll( items ); 
+			items.clear(); 
+
+			v.each{ 
+				list << it; 
+			} 
+			v.clear(); 
+		} 
+		issuedlist.clear(); 
+
+		def serials = []; 
+		def nonserials = []; 
 		def groupindex = 1000; 
-		def serials = unissuedlist.findAll{ it.formtype == 'serial' } 
-		unissuedlist.removeAll( serials ); 
+		unissuedlist.each{ 
+			if ( it.formtype == 'serial' ) { 
+				serials << it; 
+			} else { 
+				nonserials << it; 
+			} 
+		} 
+		unissuedlist.clear();
+		unissuedlist = nonserials; 
 
 		serials.groupBy{[ ownerid: it.ownerid, formno: it.formno, prefix: it.prefix, suffix: it.suffix ]}.each{ k,v-> 
 			v.sort{ it.startseries } 
@@ -119,7 +198,99 @@ class CRAAFReportService {
 			list << fo; 
 		} 
 		unissuedlist.clear(); 
+
+		if ( list.isEmpty()) throw new Exception('No record(s) found');
+
 		list.sort{ it.lineno } 
 		return list;  
 	} 
+
+	private def resolveSeriesValue( series ) { 
+		if ( series == null ) return null; 
+		else if ( series == 999999999 || series == -999999999 ) return null; 
+		else return series; 
+	}
+
+	private def mergeStubs( items ) {
+		def results = [];
+		def issgroupidx = 0;
+		def nextseries = 0; 
+		items.each{ vo-> 
+			if ( vo.startseries == nextseries ) {
+				vo.issgroupidx = issgroupidx;  
+			} else {
+				vo.issgroupidx = issgroupidx + 1; 
+			} 
+			issgroupidx = vo.issgroupidx; 
+			nextseries = vo.nextseries; 
+		}
+		items.groupBy{ it.issgroupidx }.each{ kk,vv-> 
+			vv.sort{ it.startseries } 
+
+			def fo = vv.first(); 
+			def receivedstartseries = vv.collect{ it.receivedstartseries }.findAll{( it )}.min{( it )}
+			def receivedendseries = vv.collect{ it.receivedendseries }.findAll{( it )}.max{( it )}
+			def beginstartseries = vv.collect{ it.beginstartseries }.findAll{( it )}.min{( it )}
+			def beginendseries = vv.collect{ it.beginendseries }.findAll{( it )}.max{( it )}
+			def issuedstartseries = vv.collect{ it.issuedstartseries }.findAll{( it )}.min{( it )}
+			def issuedendseries = vv.collect{ it.issuedendseries }.findAll{( it )}.max{( it )}
+
+			if ( receivedstartseries != null && receivedendseries != null ) {
+				fo.receivedendseries = receivedendseries; 
+				fo.receivedstartseries = receivedstartseries; 
+				fo.qtyreceived = (receivedendseries - receivedstartseries) + 1;
+			} else {
+				fo.receivedstartseries = fo.receivedendseries = null; 
+				fo.qtyreceived = 0;
+			}
+
+			if ( beginstartseries != null && beginendseries != null ) {
+				fo.beginendseries = beginendseries; 
+				fo.beginstartseries = beginstartseries; 
+				fo.qtybegin = (beginendseries - beginstartseries) + 1;
+			} else {
+				fo.beginstartseries = fo.beginendseries = null; 
+				fo.qtybegin = 0;
+			}
+
+			if ( issuedstartseries != null && issuedendseries != null ) {
+				fo.issuedendseries = issuedendseries; 
+				fo.issuedstartseries = issuedstartseries; 
+				fo.qtyissued = vv.findAll{ it.qtyissued > 0 }.sum{ it.qtyissued } 
+				fo.qtyissued = (fo.qtyissued ? fo.qtyissued : 0);
+			} else {
+				fo.issuedstartseries = fo.issuedendseries = null; 
+				fo.qtyissued = 0;
+			}
+
+			def qtyending = 0; 
+			def endingendseries = null; 
+			def endingstartseries = null; 
+			if ( fo.qtyissued > 0 ) {
+				if ((fo.issuedendseries + 1) <= fo.endseries) {
+					endingendseries = fo.endseries; 
+					endingstartseries = fo.issuedendseries + 1; 
+					qtyending = (endingendseries - endingstartseries) + 1; 
+				}
+			} 
+			else {
+				endingendseries = fo.endseries; 
+				endingstartseries = [fo.receivedstartseries, fo.beginstartseries].findAll{ it }.min{ it } 
+				qtyending = (fo.qtyreceived + fo.qtybegin); 
+			}
+			fo.qtyending = qtyending; 
+			fo.endingendseries = endingendseries; 
+			fo.endingstartseries = endingstartseries; 
+
+			if ((fo.qtyreceived + fo.qtybegin + fo.qtyissued + fo.qtyending) > 0) {
+				if ( fo.qtyreceived == 0 ) fo.qtyreceived = null; 
+				if ( fo.qtybegin == 0 ) fo.qtybegin = null; 
+				if ( fo.qtyissued == 0 ) fo.qtyissued = null; 
+				if ( fo.qtyending == 0 ) fo.qtyending = null; 
+
+				results << fo; 
+			}
+		}
+		return results;
+	}	
 } 

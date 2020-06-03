@@ -49,8 +49,9 @@ class BusinessOnlinePaymentInterceptor {
 	@After(pattern="OnlinePaymentService.getBilling", eval="#{args[0].txntype=='bpls'}")
 	public void fetchBilling( def evt ) { 
 		def o = evt.args[0];
-		def result = evt.result;
 		o.appno = o.refno;
+		
+		def result = evt.result;
 		def z = generateBilling(o);
 
 		def p = [:];
@@ -107,6 +108,7 @@ class BusinessOnlinePaymentInterceptor {
 		m.email = (biz.email) ? biz.email : biz.owner.email;
 		m.phoneno = (biz.phoneno) ? biz.phoneno : biz.owner.phoneno;
 		o.info = m;
+
 	}
 
 	@Before(pattern="EORService.post", eval="#{args[0].txntype=='bpls'}")

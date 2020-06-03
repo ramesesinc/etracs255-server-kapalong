@@ -1,0 +1,11 @@
+<schema adapter="eor">
+	<element tablename="eor_payment_error">
+		<field name="objid" primary="true" prefix="ERR"/>
+		<field name="txndate" required="true"/>
+		<field name="txntype" required="true"/>
+		<field name="paymentrefid" required="true"/>
+		<field name="errmsg" required="true"/>
+		<field name="errdetail" required="true"/>
+	</element>
+</schema>	
+

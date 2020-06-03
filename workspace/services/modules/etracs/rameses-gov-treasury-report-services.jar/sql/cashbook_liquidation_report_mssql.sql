@@ -7,6 +7,7 @@ from (
 	where r.controldate < $P{startdate} 
 		and r.liquidatingofficer_objid = $P{accountid} 
 		and rf.fund_objid = $P{fundid} 
+		and r.state = 'POSTED' 
 	union all 
 	select 0.0 as dr, sum(cvf.amount) as cr 
 	from collectionvoucher cv 
@@ -14,6 +15,7 @@ from (
 	where cv.controldate < $P{startdate} 
 		and cv.liquidatingofficer_objid = $P{accountid} 
 		and cvf.fund_objid = $P{fundid} 
+		and cv.state = 'POSTED' 
 )t1 
 
 
@@ -30,6 +32,7 @@ from (
 		and r.controldate <  $P{enddate} 
 		and r.liquidatingofficer_objid = $P{accountid} 
 		and rf.fund_objid = $P{fundid} 
+		and r.state = 'POSTED' 
 	union all 
 	select 
 		cv.controldate as refdate, cv.liquidatingofficer_objid as userid, cv.liquidatingofficer_name as username, 
@@ -41,5 +44,39 @@ from (
 		and cv.controldate <  $P{enddate} 
 		and cv.liquidatingofficer_objid = $P{accountid} 
 		and cvf.fund_objid = $P{fundid} 
+		and cv.state = 'POSTED' 
 )t1 
 order by refdate, idx, sortdate 
+
+
+[getReport]
+select * 
+from ( 
+	select 
+		convert(DATE, cv.controldate) as refdate, rem.collector_name as username, 
+		rem.controlno as refno, 'remittance' as reftype, remf.amount as dr, 0.0 as cr, 
+		remf.amount as amount, 0 as sortindex 
+	from collectionvoucher cv 
+		inner join collectionvoucher_fund cvf on cvf.parentid = cv.objid 
+		inner join remittance rem on rem.collectionvoucherid = cv.objid 
+		inner join remittance_fund remf on remf.remittanceid = rem.objid 
+	where cv.liquidatingofficer_objid = $P{accountid}  
+		and cv.controldate >= $P{startdate} 
+		and cv.controldate <  $P{enddate} 
+		and cvf.fund_objid = $P{fundid} 
+		and remf.fund_objid = cvf.fund_objid 
+	
+	union all 
+
+	select 
+		convert(DATE, cv.controldate) as refdate, cv.liquidatingofficer_name as username, 
+		cv.controlno as refno, 'liquidation' as reftype, 0.0 as dr, cvf.amount as cr, 
+		(cvf.amount * -1.0) as amount, 1 as sortindex 
+	from collectionvoucher cv  
+		inner join collectionvoucher_fund cvf on cvf.parentid = cv.objid 
+	where cv.liquidatingofficer_objid = $P{accountid}  
+		and cv.controldate >= $P{startdate} 
+		and cv.controldate <  $P{enddate} 
+		and cvf.fund_objid = $P{fundid} 
+)tmp1 
+order by refdate, sortindex, username, refno  

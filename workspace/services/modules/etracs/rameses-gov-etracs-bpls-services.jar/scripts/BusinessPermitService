@@ -238,10 +238,6 @@ class BusinessPermitService  {
 		else if ( perm.orgtype == 'SCH') perm.orgtypedesc = 'SCHOOL';
 		else if ( perm.orgtype == 'NGO') perm.orgtypedesc = 'NON-GOVERNMENT ORGANIZATION';
 		else perm.orgtypedesc = perm.orgtype; 
-
-		perm.each{
-			println '> '+ it;
-		}
 		return perm;
 	}
 

@@ -1,0 +1,17 @@
+import com.rameses.annotations.*;
+
+class EORPrintoutInterceptor {
+	
+	@DataContext("eor")
+	def eorEm;
+
+	@After(pattern="FormReportService.getData", eval="#{args[0].reportid == 'eorprintout'}")
+	public def getEORData( def evt ) {
+		def result = evt.result;
+		def qry = evt.args[0];
+		println "query is " + qry;
+		result.data = [items:[], receiptno: '12345'];
+	} 
+
+
+}

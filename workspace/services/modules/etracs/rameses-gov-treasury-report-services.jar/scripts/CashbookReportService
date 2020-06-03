@@ -49,7 +49,8 @@ class CashbookReportService {
 		} 
 
 		def funds = []; 
-		fundgroup_db.where('1=1').orderBy('indexno').list().each{ fg-> 
+		def fundgroups = fundgroup_db.where('1=1').orderBy('indexno').list();
+		fundgroups.each{ fg-> 
 			funds.addAll( fund_db.find([ groupid: fg.objid ]).orderBy('code').list()); 
 		} 
 		return [ 
@@ -59,19 +60,32 @@ class CashbookReportService {
 			year   : dateSvc.getServerYear(), 
 			months : dateSvc.getMonths(), 
 
+			fundgroups : fundgroups, 
+
 			allow_multiple_fund_selection : allow_multiple_fund_selection  
 		]; 
 	} 
 
 	@ProxyMethod
 	public def generateReport( params ) {
+		if ( params.fund == null &&  params.fundgroup == null ) 
+			throw new Exception("Please specify a Fund or Fund Group"); 
+
 		buildDateFilter( params ); 
 		params.accountid = params.account ? params.account.objid : env.USERID;
-		params.fundid = params.fund.objid; 
 
-		if ( params.fund instanceof java.util.List ) {
-			params.fundfilter = params.fund.collect{( "'"+ it.objid +"'" )}.join(","); 
-			params.fundtitle = params.fund.collect{ it.title }.join(", ");
+		def funds = null; 
+		if ( params.fundgroup?.objid ) {
+			funds = fund_db.find([ groupid: params.fundgroup.objid ]).select('objid,title,code').orderBy('code').list(); 
+		} 
+		else if ( params.fund instanceof java.util.List ) {
+			funds = params.fund;
+		}
+
+		if ( funds && (funds instanceof java.util.List)) {
+			params.fundfilter = funds.collect{( "'"+ it.objid +"'" )}.join(","); 
+			params.fundtitle = funds.collect{ it.title }.join(", ");
+			funds.clear(); 
 		} 
 		else if ( params.fund ) {
 			params.fundfilter = "'"+ params.fund.objid +"'"; 
@@ -80,6 +94,8 @@ class CashbookReportService {
 		else {
 			params.fundfilter = "''"; 
 		}
+
+
 
 		def data = [:];
 		def balinfo = null; 
@@ -100,9 +116,15 @@ class CashbookReportService {
 		} 
 		else { 
 			data.items = report_db.getDetails( params ); 
-			balinfo = report_db.findBeginBalance( params ); 
+
+			def m = [:];
+			m.putAll( params );  
+			m.fromdate = new java.text.SimpleDateFormat('yyyy-01-01').format( params.fromdate );
+			m.todate = params.fromdate; 			
+			balinfo = report_db.findBeginBalance2( m ); 
 		} 
 
+		data.begbaldr = data.begbalcr = 0.0; 
 		if ( balinfo ) {
 			balinfo.refid = 'begin_balance'; 
 			balinfo.reftype = '** BEGIN BALANCE **'; 
@@ -121,6 +143,9 @@ class CashbookReportService {
 				} else {
 					data.items << balinfo; 
 				}
+
+				data.begbaldr = balinfo.dr;
+				data.begbalcr = balinfo.cr;
 			} 
 		}
 
@@ -133,6 +158,10 @@ class CashbookReportService {
 			ACCOUNTTITLE : (params.account ? params.account.title : env.JOBTITLE), 
 			REV_FUND_AMT : revfund?.amount  
 		]; 
+		if ( params.fundgroup?.objid ) {
+			data.info.FUNDNAME = params.fundgroup.objid.toString() +' GROUP'; 
+		}
+
 		if ( params.period?.code == 'daily' ) { 
 			data.info.PERIOD = MDY.format( params.fromdate ); 
 			data.info.PERIODCOVERED = data.info.PERIOD; 
@@ -163,6 +192,4 @@ class CashbookReportService {
 			throw new Exception("'"+ params.period?.code +"' period option not supported"); 
 		}
 	}
-
-	
 }

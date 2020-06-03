@@ -107,15 +107,23 @@ public class BusinessBillingService  {
 			facts << app;
 		}
 
+		def qtrdates = [];
+
 		//insert the deadline facts
 		def years = o.taxfees*.year; 
 		years << currYear; 
 		years.unique().each { y->
 			(1..4).each { q->
 				def qtr = new QtrDeadline(y, q);	
-				qtr.deadline = expiryDateSvc.findExpiryDate( [year:y, qtr:q] );
-				facts << qtr;
-			}
+				qtr.deadline = expiryDateSvc.findExpiryDate([ year:y, qtr:q ]);
+				facts << qtr; 
+
+				def qtrinfo = [ qtr: q ];
+				if ( o.app?.appyear == currYear ) {
+					qtrinfo.duedate = qtr.deadline;
+				}
+				qtrdates << qtrinfo;
+			} 
 		}
 
 		def result = ruleSvc.execute( facts );
@@ -156,7 +164,8 @@ public class BusinessBillingService  {
 		def r = summarizeTotals( newtaxfees ); 
 		return [ 
 			taxfees: newtaxfees, excess: result.excess, totals: r, 
-			expirydate: result.validUntil, nextbilldate: result.validUntil  
+			expirydate: result.validUntil, nextbilldate: result.validUntil, 
+			qtrdates: qtrdates 
 		]; 
 	} 
 

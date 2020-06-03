@@ -126,50 +126,55 @@ public class LGUOrgReportParameterInterceptor
 	public void addBarangayInfo(evt) 
 	{
 		def result = evt.result
-
-		def brgy = brgySvc.getById(env.ORGID)
+		def brgy = brgySvc.getById(env.ORGID);
 
 		def lgu = brgy.lgu;
-		if ('city'.equalsIgnoreCase(lgu.lgutype)){
-			result.LGUTYPE	= 'city' 
-			result.CITYNAME = lgu.fullname 
+		if ( lgu == null ) lgu = [:]; 
+
+		def lgutype = lgu.lgutype;
+		if ( 'city'.equalsIgnoreCase( lgutype.toString())) {
+			lgu = citySvc.getById( lgu.objid.toString() );
+			if ( lgu == null ) lgu = [:]; 
+
+			result.LGUTYPE	= 'city';
+			result.CITYNAME = lgu.fullname;
 		}
-		else{
-			lgu =  munSvc.getById( env.ORGID ) 
-			result.LGUTYPE	= 'municipality' 
-			result.MUNICIPALNAME = lgu.fullname 
+		else {
+			lgu = munSvc.getById( lgu.objid.toString() );
+			if ( lgu == null ) lgu = [:]; 
 
-			def province = provSvc.getById( lgu.parentid )
-			result.PARENTLGUNAME = province.name
-			result.PARENTLGUFORMALNAME = province.fullname
-			result.PROVINCIALTREASURERNAME = province.treasurer?.name
-			result.PROVINCIALTREASURERTITLE = province.treasurer?.title
-			result.PROVINCIALTREASUREROFFICENAME = province.treasurer?.office
-			result.PROVINCIALASSESSORNAME = province.assessor?.name
-			result.PROVINCIALASSESSORTITLE = province.assessor?.title
-			result.PROVINCIALASSESSOROFFICENAME = province.assessor?.office
+			result.LGUTYPE	= 'municipality'; 
+			result.MUNICIPALNAME = lgu.fullname; 
+
+			def province = provSvc.getById( lgu.parentid.toString() );
+			if ( province == null ) province = [:]; 
+
+			result.PARENTLGUNAME = province.name;
+			result.PARENTLGUFORMALNAME = province.fullname;
+			result.PROVINCIALTREASURERNAME = province.treasurer?.name;
+			result.PROVINCIALTREASURERTITLE = province.treasurer?.title;
+			result.PROVINCIALTREASUREROFFICENAME = province.treasurer?.office;
+			result.PROVINCIALASSESSORNAME = province.assessor?.name;
+			result.PROVINCIALASSESSORTITLE = province.assessor?.title;
+			result.PROVINCIALASSESSOROFFICENAME = province.assessor?.office;
 		}
 
-		result.LGUNAME  = lgu.name  
-		result.LGUFORMALNAME = lgu.fullname 
-		result.LGUADDRESS = lgu.address 
-		result.GIVENAT = lgu.address 
-		result.TREASURERNAME  = lgu.treasurer?.name 
-        result.TREASURERTITLE = lgu.treasurer?.title
-        result.TREASUREROFFICENAME = lgu.treasurer?.office
-		result.ASSESSORNAME = lgu.assessor?.name
-		result.ASSESSORTITLE = lgu.assessor?.title
-		result.ASSESSOROFFICENAME = lgu.assessor?.office
-		result.MAYOROFFICENAME = lgu.mayor?.office
-		result.MAYORNAME  = lgu.mayor?.name
-		result.MAYORTITLE  = lgu.mayor?.title
+		result.LGUNAME  = lgu.name;
+		result.LGUFORMALNAME = lgu.fullname;
+		result.LGUADDRESS = lgu.address;
+		result.GIVENAT = lgu.address; 
+		result.TREASURERNAME  = lgu.treasurer?.name;
+        result.TREASURERTITLE = lgu.treasurer?.title;
+        result.TREASUREROFFICENAME = lgu.treasurer?.office;
+		result.ASSESSORNAME = lgu.assessor?.name;
+		result.ASSESSORTITLE = lgu.assessor?.title;
+		result.ASSESSOROFFICENAME = lgu.assessor?.office;
+		result.MAYOROFFICENAME = lgu.mayor?.office;
+		result.MAYORNAME  = lgu.mayor?.name;
+		result.MAYORTITLE  = lgu.mayor?.title;
 
-		result.CHIEFBPLO = result.MAYORNAME
-		result.CHIEFBPLOTITLE = result.MAYORTITLE
-		result.CHIEFBPLOOFFICE = result.MAYOROFFICENAME 
-
-	}	
-
-
-
+		result.CHIEFBPLO = result.MAYORNAME;
+		result.CHIEFBPLOTITLE = result.MAYORTITLE;
+		result.CHIEFBPLOOFFICE = result.MAYOROFFICENAME;
+	}
 }

@@ -42,5 +42,8 @@ go
 
 		<field name="txncode" caption="Txn Code"/>
 		<field name="jobtitle" caption="Job Title"/>
+		
+		<field name="respcenter_objid" caption="RespCenter"/>
+		<field name="respcenter_name" caption="RespCenterName"/>
 	</element>
 </schema> 

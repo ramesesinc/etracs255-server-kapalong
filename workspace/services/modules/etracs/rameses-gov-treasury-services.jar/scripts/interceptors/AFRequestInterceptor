@@ -34,7 +34,7 @@ class AFRequestInterceptor {
 		def o = evt.args[0];
 		o.requester = [objid:env.USERID, name:env.FULLNAME, title:env.JOBTITLE];
 		o.org = [objid:env.ORGID, name:env.ORGNAME];
-		o.reqno = ''+ seqkey + seqSvc.getNextFormattedSeriesA( seqkey, 5 );
+		o.reqno = ''+ seqkey + seqSvc.getNextFormattedSeriesA( seqkey, 4 );
 		o.dtfiled = dateSvc.serverDate; 
 		o.state = "OPEN"; 
 

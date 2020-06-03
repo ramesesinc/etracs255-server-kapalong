@@ -302,6 +302,7 @@ class RemittanceService  {
 
 	@ProxyMethod 
 	public def getReportData( params ) { 
+		params.prevtxn = remEm.findPrevious([ remittanceid: params.objid ]); 
 		return params; 
 	} 
 
@@ -348,6 +349,26 @@ class RemittanceService  {
 				it.cashbreakdown = []; 
 				rfEm.create( it ); 
 			} 
-		}
+		} 
 	} 
+
+
+	@ProxyMethod
+	public def changeLiqOfficer( param ) {
+		if (!param.objid) throw new Exception('objid parameter is required'); 
+		if (!param.liquidatingofficer?.objid) throw new Exception('liquidatingofficer.objid parameter is required'); 
+		if (!param.liquidatingofficer?.name) throw new Exception('liquidatingofficer.name parameter is required'); 
+		if (!param.liquidatingofficer?.title) throw new Exception('liquidatingofficer.title parameter is required'); 
+
+		def strcols = 'objid,state,liquidatingofficer.*';
+		def remdata = remEm.find([ objid: param.objid ]).select( strcols ).first(); 
+		if ( !remdata ) throw new Exception('remittance record not found'); 
+
+		if ( !remdata.state.toString().toUpperCase().matches('OPEN')) 
+			throw new Exception('Change Liq.Officer is allowed only if status is OPEN'); 
+
+		def remdb = remEm.find([ objid: remdata.objid ]).where(" state = 'OPEN' ");
+		remdb.update([ liquidatingofficer: param.liquidatingofficer ]); 
+		return remEm.find([ objid: remdata.objid ]).select( strcols ).first(); 
+	}
 } 

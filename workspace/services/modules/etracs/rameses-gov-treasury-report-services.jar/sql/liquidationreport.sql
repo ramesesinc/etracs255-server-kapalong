@@ -45,28 +45,6 @@ group by collectorid, collectorname, dtposted, txnno
 order by collectorid, collectorname, dtposted, txnno 
 
 
-[getRCDRemittancesSummary]
-select 
-  collectorname, dtposted, 
-  txnno, sum(amount) as amount  
-from ( 
-  select 
-      r.collector_name as collectorname, r.txnno as txnno,
-      convert(r.remittancedate, DATE) as dtposted, rf.amount as amount 
-  from liquidation_remittance lr 
-    inner join remittance r on lr.objid = r.objid 
-    inner join remittance_fund rf ON r.objid = rf.remittanceid  
-  where lr.liquidationid = $P{collectionvoucherid} 
-    and rf.fund_objid in ( 
-      select objid from fund where objid like $P{fundid} 
-      union 
-      select objid from fund where objid in (${fundfilter}) 
-    ) 
-)xx 
-group by collectorname, dtposted, txnno 
-order by collectorname, dtposted, txnno 
-
-
 [getRCDCollectionSummary]
 select * from ( 
   select  
@@ -88,78 +66,47 @@ select * from (
 order by t1.fundsortorder, t1.particulars 
 
 
-[getRCDRemittedForms]
-select xx.*, 
-  (xx.receivedendseries - xx.receivedstartseries)+1 as qtyreceived, 
-  (xx.beginendseries - xx.beginstartseries)+1 as qtybegin, 
-  (xx.issuedendseries - xx.issuedstartseries)+1 as qtyissued, 
-  (xx.endingendseries - xx.endingstartseries)+1 as qtyending  
-from ( 
-  select xx.*, 
-    case 
-      when xx.issuedstartseries > 0 then xx.issuedstartseries 
-      when xx.beginstartseries > 0 then xx.beginstartseries 
-      WHEN xx.receivedstartseries > 0 then xx.receivedstartseries 
-      else xx.endingstartseries 
-    end as sortseries 
-  from ( 
-    select 
-      xx.controlid, afi.afid as formno, af.formtype, af.serieslength, af.denomination,  
-      afi.respcenter_objid as ownerid, afi.respcenter_name as ownername, 
-      (select receivedstartseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and receivedstartseries > 0 
-          order by lineno limit 1) as receivedstartseries, 
-      (select receivedendseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and receivedendseries > 0 
-          order by lineno limit 1) as receivedendseries, 
-      (select beginstartseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and beginstartseries > 0 
-          order by lineno limit 1) as beginstartseries, 
-      (select beginendseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and beginendseries > 0 
-          order by lineno desc limit 1) as beginendseries, 
-      (select issuedstartseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and issuedstartseries > 0 
-          order by lineno limit 1) as issuedstartseries, 
-      (select issuedendseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and issuedendseries > 0 
-          order by lineno desc limit 1) as issuedendseries , 
-      (select endingstartseries from af_inventory_detail 
-        where controlid=xx.controlid and lineno between xx.minlineno and xx.maxlineno and endingstartseries > 0 
-          order by lineno desc limit 1) as endingstartseries , 
-      (select endingendseries from af_inventory_detail 
-        where controlid=xx.controlid and endingendseries > 0 
-          order by lineno limit 1) as endingendseries
-    from ( 
-      select ad.controlid, min(ad.lineno) as minlineno, max(ad.lineno) as maxlineno 
-      from liquidation_remittance lr 
-        inner join remittance_af r on lr.objid = r.remittanceid
-        inner join af_inventory_detail ad on r.objid = ad.objid 
-      where lr.liquidationid = $P{liquidationid}  
-      group by ad.controlid 
-    )xx 
-      inner join af_inventory afi on xx.controlid=afi.objid 
-      inner join af on afi.afid=af.objid 
-  )xx 
-)xx 
-order by formno, sortseries 
-
-
 [getRCDOtherPayments]
-select 
-  nc.reftype as paytype, nc.particulars, nc.amount 
-from remittance r 
-  inner join cashreceipt c on c.remittanceid = r.objid 
-  inner join cashreceiptpayment_noncash nc on nc.receiptid = c.objid 
-  left join cashreceipt_void v on v.receiptid = c.objid 
-where r.collectionvoucherid = $P{collectionvoucherid}  
-  and v.objid is null 
-  and nc.fund_objid in ( 
-    select objid from fund where objid like $P{fundid} 
-    union 
-    select objid from fund where objid in (${fundfilter}) 
-  ) 
-order by nc.refdate, nc.refno 
+select * 
+from ( 
+  select 
+    cp.bank_name, nc.reftype, nc.particulars, 
+    sum(nc.amount) as amount, min(nc.refdate) as refdate 
+  from remittance rem 
+    inner join cashreceipt c on c.remittanceid = rem.objid 
+    inner join cashreceiptpayment_noncash nc on (nc.receiptid = c.objid and nc.reftype = 'CHECK') 
+    inner join checkpayment cp on cp.objid = nc.refid 
+    left join cashreceipt_void v on v.receiptid = c.objid 
+  where rem.collectionvoucherid = $P{collectionvoucherid} 
+    and nc.fund_objid in ( 
+      select objid from fund where objid like $P{fundid} 
+      union 
+      select objid from fund where objid in (${fundfilter}) 
+    ) 
+    and v.objid is null 
+  group by cp.bank_name, nc.reftype, nc.particulars 
+
+  union all 
+
+  select 
+    ba.bank_name, nc.reftype, nc.particulars, 
+    sum(nc.amount) as amount, min(nc.refdate) as refdate 
+  from remittance rem 
+    inner join cashreceipt c on c.remittanceid = rem.objid 
+    inner join cashreceiptpayment_noncash nc on (nc.receiptid = c.objid and nc.reftype = 'EFT') 
+    inner join eftpayment e on e.objid = nc.refid 
+    inner join bankaccount ba on ba.objid = e.bankacctid 
+    left join cashreceipt_void v on v.receiptid = c.objid 
+  where rem.collectionvoucherid = $P{collectionvoucherid} 
+    and nc.fund_objid in ( 
+      select objid from fund where objid like $P{fundid} 
+      union 
+      select objid from fund where objid in (${fundfilter}) 
+    ) 
+    and v.objid is null 
+  group by ba.bank_name, nc.reftype, nc.particulars 
+)t1 
+order by bank_name, refdate, amount 
 
 
 [getRevenueItemSummaryByFund]
@@ -217,68 +164,7 @@ from (
 )t1, fund 
 where fund.objid = t1.fundid ${fundfilter} 
 group by t1.fundid, fund.title, t1.acctid, t1.acctcode, t1.acctname 
-having sum(t1.amount)-sum(t1.share) > 0 
 order by fund.title, t1.acctcode 
-
-
-[getFundSummaries]
-SELECT * FROM liquidation_fund WHERE liquidationid = $P{liquidationid}
-
-[getLiquidationCashierList]
-select 
-  distinct f.cashier_name as name, su.jobtitle 
-from liquidation_fund f 
-  inner join sys_user su on su.objid = f.cashier_objid 
-where liquidationid = $P{liquidationid}  
-
-
-[getAbstractNGASReport]
-select  
-  na.code as account_code, na.title as account_title, na.type as account_type, 
-  na.parentid as account_parentid, f.code as fund_code, f.title as fund_title, 
-  sum( inc.amount ) as amount 
-from ( 
-  select objid from liquidation_remittance 
-  where liquidationid = $P{liquidationid}  
-)xx 
-  inner join income_summary inc on xx.objid = inc.refid 
-  inner join fund f ON inc.fundid = f.objid  
-  inner join ngas_revenue_mapping nrm ON inc.acctid = nrm.revenueitemid 
-  inner join ngasaccount na ON nrm.acctid = na.objid 
-where f.objid = $P{fundname}   
-group by na.type, na.code, na.title, na.parentid, f.code, f.title 
-order by na.code  
-
-
-[getUnmappedNGASReport]
-select  
-  ia.code as account_code, ia.title as account_title, 'unmapped' as account_type, 
-  null as account_parentid, f.code as fund_code, f.title as fund_title, 
-  sum( inc.amount ) as amount 
-from ( 
-  select objid from liquidation_remittance 
-  where liquidationid = $P{liquidationid} 
-)xx 
-  inner join income_summary inc on xx.objid = inc.refid 
-  inner join itemaccount ia on inc.acctid = ia.objid 
-  inner join fund f on inc.fundid = f.objid 
-where inc.fundid = $P{fundname}  
-  and inc.acctid not in (select revenueitemid from ngas_revenue_mapping where revenueitemid=inc.acctid)
-group by ia.code, ia.title, f.code, f.title 
-order by ia.code  
-
-
-[findCreditMemoByFund]
-select sum(pc.amount) as amount 
-from ( 
-  select remc.* from liquidation_remittance lr 
-    inner join remittance_cashreceipt remc on lr.objid = remc.remittanceid 
-  where lr.liquidationid = $P{liquidationid}  
-    and remc.objid not in (select receiptid from cashreceipt_void where receiptid=remc.objid) 
-)xx 
-  inner join cashreceiptpayment_noncash pc on xx.objid = pc.receiptid 
-where pc.account_fund_objid = $P{fundid}  
-  and pc.reftype='CREDITMEMO'
 
 
 [getReceipts]

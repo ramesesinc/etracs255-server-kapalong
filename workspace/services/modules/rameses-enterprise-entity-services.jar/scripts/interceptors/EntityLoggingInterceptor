@@ -31,7 +31,7 @@ class EntityLoggingInterceptor  {
 	@After(pattern="PersistenceService.update", eval="#{args[0]._schemaname.matches('entity.*')}", index=100)
 	public void logAfterUpdate(def evt ) {
 		def o = evt.args[0];
-		logSvc.logA(evt.methodName, o._schemaname, o.objid, "" );
+		logSvc.logA(evt.methodName, o._schemaname, o.objid, o.toString() );
 	}
 
 

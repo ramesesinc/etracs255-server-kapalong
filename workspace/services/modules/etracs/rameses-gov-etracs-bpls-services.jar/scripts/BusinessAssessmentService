@@ -167,6 +167,7 @@ public class BusinessAssessmentService  {
 			else tf.indexno=3;
 		}
 		m.taxfees.sort{ it.indexno } 
+		m.qtrdates = z.qtrdates;
 		return m;
 	}
 

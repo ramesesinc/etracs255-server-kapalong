@@ -173,5 +173,8 @@ class DepositVoucherService  {
 	}
 
 
-
+	@ProxyMethod 
+	public def getReportData( params ) { 
+		return params; 
+	}
 }

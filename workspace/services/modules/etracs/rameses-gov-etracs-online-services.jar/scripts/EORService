@@ -33,11 +33,12 @@ class EORService {
         def svrDate = dateService.serverDate;
         def entity = [:];
         entity.partnerid = po.partnerid;
-        entity.receiptno = eorNumSvc.getNextEORNumber( po.partnercode );
+        entity.receiptno = eorNumSvc.getNextEORNumber( po.partnerid );
         entity.receiptdate = po.tracedate;
         entity.txndate = svrDate;
         entity.state = 'POSTED';
         entity.txntype = po.txntype;
+        entity.txntypename = po.txntypename;
 
         entity.tracedate = po.tracedate;
         entity.traceid = po.traceid;

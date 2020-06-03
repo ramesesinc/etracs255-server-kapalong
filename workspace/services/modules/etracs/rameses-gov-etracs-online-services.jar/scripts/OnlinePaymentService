@@ -14,8 +14,14 @@ class OnlinePaymentService   {
     @DataContext("eor_paymentorder")
     def poEm; 
 
-    @DataContext("unpostedpayment")
-    def unpostedpayment_db; 
+    @DataContext("eor_paymentorder_paid")
+    def po_paid_db; 
+
+    @DataContext("eor_paymentorder_cancelled")
+    def po_cancelled_db; 
+
+    @DataContext("eor_payment_error")
+    def err_db; 
 
     @Env 
     def env; 
@@ -106,9 +112,13 @@ class OnlinePaymentService   {
     }
 
     @ProxyMethod
-    public void cancelPaymentOrder(def o ) {
-        poEm.find( [objid: o.refno ] ).delete();
-    }
+    public void cancelPaymentOrder( o ) { 
+        def po = poEm.find([ objid: o.refno ]).first();
+        if ( !po?.objid ) throw new Exception(""+ o.refno +" payment order not found"); 
+
+        po_cancelled_db.create( po ); 
+        poEm.find([ objid: po.objid ]).delete(); 
+    } 
 
     @ProxyMethod(local=true)
     public def postPayment( def o ) {
@@ -117,15 +127,15 @@ class OnlinePaymentService   {
         if (!o.txntype) return [status:1, message:'txntype is required'];
 
         def po = poEm.find([ objid: o.paymentrefid ]).first();
-        if (!po) throw new Exception('Payment Order No. ' + o.objid + ' does not exist or has already been processed.')
+        if ( !po?.objid ) throw new Exception('Payment Order No. ' + o.objid + ' does not exist or has already been processed.')
 
         if (o.tracedate instanceof String ) {
             def df = new java.text.SimpleDateFormat("yyyy-MM-dd");
             o.tracedate = df.parse( o.tracedate );
         }
 
-        po.paymentrefid = po.objid; 
-        po.partnercode = o.partnercode;
+        def paymentrefid = po.objid; 
+        po.paymentrefid = paymentrefid; 
         po.partnerid = o.partnerid; 
         po.tracedate = o.tracedate; 
         po.traceid = o.traceid;
@@ -134,36 +144,25 @@ class OnlinePaymentService   {
         def retval = [:]; 
         boolean pass = false; 
         try { 
-            println "ABOUT TO POST THE PAYMENT EOR";
             r = eorSvc.post( po ); 
-            retval.paymentrefid =  r.paymentrefid;
+
+            po.objid = paymentrefid; 
+            po_paid_db.create( po ); 
+            poEm.find([ objid: po.objid ]).delete(); 
+
             retval.receiptno = r.receiptno;
             retval.receiptid = r.objid;
             retval.receiptdate = r.receiptdate; 
-
-            //set the contact info like email and email for notification
-            retval.email = po.email;
-            retval.mobileno = po.mobileno;
-
+            retval.paymentrefid = r.paymentrefid;
             pass = true; 
         } 
         catch(Throwable t) { 
             def m = buildErrorInfo( t ); 
-            println 'payment posting error '+ o.paymentrefid +' caused by: '+ m.errmsg; 
-            m.objid = o.objid; 
+            println 'payment posting error '+ paymentrefid +' caused by: '+ m.errmsg; 
+            m.paymentrefid = paymentrefid; 
             m.txndate = o.txndate;
             m.txntype = o.txntype;
-            m.txntypename = o.info?.txntypename; 
-            m.paymentrefid = o.paymentrefid; 
-            m.amount = o.amount; 
-            m.orgcode = o.orgcode;
-            m.partnerid = o.partnerid;
-            m.traceid = o.traceid; 
-            m.tracedate = o.tracedate; 
-            m.refno = o.info?.refno;
-            m.origin = o.info?.origin; 
-            m.paymentorder = po; 
-            unpostedpayment_db.create( m );  
+            err_db.create( m );  
             retval = null; 
         } 
 
@@ -175,11 +174,13 @@ class OnlinePaymentService   {
         initEnv();        
 
         def m = [:];
-        if( o.receiptno ) m.receiptno = o.receiptno;
+        if ( o.receiptno ) m.receiptno = o.receiptno;
+
         def rc = eorEm.find(m).first(1);
-        if(!rc) {
-            throw new Exception("Receipt " + o + " not found");
-        }
+        if ( !rc ) throw new Exception("Receipt " + o + " not found");
+
+        if ( !o.txntype ) o.txntype = rc.txntype; 
+
         //get amount in words
         if ( rc?.amount instanceof Number ) { 
             if( rc.amount < 1 ) { 

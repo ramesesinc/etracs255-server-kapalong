@@ -22,32 +22,6 @@ from (
 		and r.liquidatingofficer_objid is not null 
 )t1 
 
-[findBeginBalance2]
-select sum(dr) as dr, sum(cr) as cr, sum(dr)-sum(cr) as balance 
-from ( 
-	select sum(dr) as dr, sum(cr) as cr 
-	from vw_cashbook_cashreceipt 
-	where refdate >= $P{fromdate} 
-		and refdate < $P{todate} 
-		and collectorid = $P{accountid} 
-		and fundid in (${fundfilter})
-	union all 
-	select sum(dr) as dr, sum(cr) as cr 
-	from vw_cashbook_cashreceiptvoid 
-	where refdate >= $P{fromdate} 
-		and refdate < $P{todate} 
-		and collectorid = $P{accountid} 
-		and fundid in (${fundfilter})
-	union all 
-	select sum(v.dr) as dr, sum(v.cr) as cr  
-	from vw_cashbook_remittance v, remittance r  
-	where v.refdate >= $P{fromdate} 
-		and v.refdate < $P{todate} 
-		and v.collectorid = $P{accountid} 
-		and v.fundid in (${fundfilter})
-		and v.objid = r.objid 
-		and r.liquidatingofficer_objid is not null 
-)t1 
 
 [findRevolvingFund]
 select 
@@ -63,42 +37,228 @@ where issueto_objid = $P{accountid}
 group by year(controldate), month(controldate), ((year(controldate)*12) + month(controldate)) 
 order by ((year(controldate)*12) + month(controldate)) desc 
 
+
 [getDetails]
-select * 
+select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
 from ( 
 	select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
-	from vw_cashbook_cashreceipt 
-	where refdate >= $P{fromdate} 
-		and refdate <  $P{todate} 
-		and collectorid = $P{accountid} 
-		and fundid in (${fundfilter})
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceipt 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceipt_share  
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceipt_share_payable  
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+		group by refdate, refno, reftype, sortdate 
+	)t0 
 	group by refdate, refno, reftype, sortdate 
+
 	union all 
+
 	select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
-	from vw_cashbook_cashreceiptvoid 
-	where refdate >= $P{fromdate} 
-		and refdate <  $P{todate} 
-		and collectorid = $P{accountid} 
-		and fundid in (${fundfilter})
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+			and voiddate <= txndate 
+		group by refdate, refno, reftype, sortdate 
+	)t0 
 	group by refdate, refno, reftype, sortdate 
+
 	union all 
-	select v.refdate, v.refno, v.reftype, v.dr, v.cr, v.sortdate  
-	from vw_cashbook_remittance v, remittance r  
-	where v.refdate >= $P{fromdate} 
-		and v.refdate <  $P{todate} 
-		and v.collectorid = $P{accountid} 
-		and v.fundid in (${fundfilter})
-		and r.objid = v.objid 
-		and r.liquidatingofficer_objid is not null 
-)t1 
+
+	select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance_share  
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance_share 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+			and voiddate <= txndate 
+		group by refdate, refno, reftype, sortdate 
+	)t0 
+	group by refdate, refno, reftype, sortdate 
+
+	union all 
+
+	select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance_share_payable
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+		from vw_cashbook_remittance_share_payable 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and liquidatingofficer_objid is not null 
+			and voiddate <= txndate 
+		group by refdate, refno, reftype, sortdate 
+	)t0 
+	group by refdate, refno, reftype, sortdate 
+
+	union all 
+
+	select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and (remittanceid is null or txndate <= remittancedtposted) 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid_share
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter}) 
+			and (remittanceid is null or txndate <= remittancedtposted) 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, sum(dr) as dr, 0.0 as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid_share_payable
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter}) 
+			and (remittanceid is null or txndate <= remittancedtposted) 
+		group by refdate, refno, reftype, sortdate 
+	)t0 
+	group by refdate, refno, reftype, sortdate 
+
+	union all 
+
+	select refdate, refno, reftype, -sum(dr) as dr, -sum(cr) as cr, sortdate 
+	from ( 
+		select refdate, refno, reftype, sum(dr) as dr, sum(dr) as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid 
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and txndate > remittancedtposted 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, -sum(dr) as dr, -sum(dr) as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid_share
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and txndate > remittancedtposted 
+		group by refdate, refno, reftype, sortdate 
+		union all 
+		select refdate, refno, reftype, sum(dr) as dr, sum(dr) as cr, sortdate 
+		from vw_cashbook_cashreceiptvoid_share_payable
+		where refdate >= $P{fromdate} 
+			and refdate <  $P{todate} 
+			and collectorid = $P{accountid} 
+			and fundid in (${fundfilter})
+			and txndate > remittancedtposted 
+		group by refdate, refno, reftype, sortdate 
+	)t0 
+	group by refdate, refno, reftype, sortdate 
+)tt 
+group by refdate, refno, reftype, sortdate 
 order by sortdate, refdate 
 
 
 [getSummaries]
-select refdate, particulars, refno, dr, cr 
+select refdate, particulars, refno, sum(dr) as dr, sum(cr) as cr, min(sortdate) as sortdate, min(idxno) as idxno 
 from ( 
 	select 
-		refdate, controlid, formno, min(series) as minseries, max(series) as maxseries, 
+		0 as idxno, t.refdate, t.controlid, t.formno, min(t.series) as minseries, min(t.series) as maxseries, 
+		min((case when t.formno = '51' then 'VARIOUS TAXES AND FEES' else t.af_title end)) as particulars,
+		min(concat('*** VOIDED - AF ', t.formno, '#', t.refno,' ***')) as refno, 
+		-sum(t.dr) as dr, -sum(t.cr) as cr, min(t.sortdate) as sortdate 
+	from ( 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, v.dr, v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate < v.refdate 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, -v.dr, -v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid_share v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate < v.refdate 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, v.dr, v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid_share_payable v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate < v.refdate 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+	)t 
+	group by t.refdate, t.controlid, t.formno  
+
+	union all 
+
+	select 
+		1 as idxno, refdate, controlid, formno, min(series) as minseries, max(series) as maxseries, 
 		(case when formno = '51' then 'VARIOUS TAXES AND FEES' else af_title end) as particulars, 
 		concat('AF ', formno, '#', min(refno), '-', max(refno)) as refno, 
 		sum(dr) as dr, 0.0 as cr, min(sortdate) as sortdate 
@@ -111,37 +271,24 @@ from (
 		where c.refdate >= $P{fromdate} 
 			and c.refdate <  $P{todate} 
 			and c.collectorid = $P{accountid} 
-			and c.fundid in (${fundfilter})
+			and c.fundid in (${fundfilter}) 
 			and af.formtype = 'serial' 
-
 		union all 
-
-		select 
-			t1.refdate, t1.controlid, t1.formno, t1.series, 
-			t1.af_title, t1.refno, -cs.dr as dr, 0.0 as cr, t1.sortdate 
-		from ( 
-			select 
-				c.receiptid, c.controlid, c.formno, c.series, 
-				af.title as af_title, c.refdate, c.refno, c.sortdate 
-			from vw_cashbook_cashreceipt c  
-				inner join af on af.objid = c.formno 
-			where c.refdate >= $P{fromdate} 
-				and c.refdate <  $P{todate} 
-				and c.collectorid = $P{accountid} 
-				and c.fundid in (${fundfilter}) 
-				and af.formtype = 'serial' 
-			group by 
-				c.receiptid, c.controlid, c.formno, c.series, 
-				af.title, c.refdate, c.refno, c.sortdate 
-		)t1, vw_cashbook_cashreceipt_share cs 
-		where cs.receiptid = t1.receiptid 
-
-		union all 
-
 		select 
 			c.refdate, c.controlid, c.formno, c.series, 
-			af.title as af_title, c.refno, c.dr, 0.0 as cr, c.sortdate 
+			af.title as af_title, c.refno, -c.dr as dr, c.cr, c.sortdate 
 		from vw_cashbook_cashreceipt_share c  
+			inner join af on af.objid = c.formno 
+		where c.refdate >= $P{fromdate} 
+			and c.refdate <  $P{todate} 
+			and c.collectorid = $P{accountid} 
+			and c.fundid in (${fundfilter}) 
+			and af.formtype = 'serial' 
+		union all 
+		select 
+			c.refdate, c.controlid, c.formno, c.series, 
+			af.title as af_title, c.refno, c.dr, c.cr, c.sortdate 
+		from vw_cashbook_cashreceipt_share_payable c  
 			inner join af on af.objid = c.formno 
 		where c.refdate >= $P{fromdate} 
 			and c.refdate <  $P{todate} 
@@ -155,75 +302,241 @@ from (
 	union all 
 
 	select 
-		c.refdate, c.objid as controlid, c.formno, min(c.series) as minseries, min(c.series) as maxseries, 
-		min((case when c.formno = '51' then 'VARIOUS TAXES AND FEES' else af.title end)) as particulars,
-		min(concat('*** VOIDED - AF ',c.formno,'#',c.refno,' ***')) as refno, sum(c.dr) as dr, sum(c.cr) as cr, 
-		min(c.sortdate) as sortdate 
-	from vw_cashbook_cashreceiptvoid c 
-		inner join af on af.objid = c.formno 
-	where c.refdate >= $P{fromdate} 
-		and c.refdate <  $P{todate} 
-		and c.collectorid = $P{accountid} 
-		and c.fundid in (${fundfilter})
-		and af.formtype = 'serial' 
-	group by c.refdate, c.objid, c.formno, c.fundid  	
-
-	union all 
-
-	select 
-		c.refdate, null as controlid, c.formno, null as minseries, null as maxseries, 
-		af.title as particulars, c.formno as refno, sum(c.dr) as dr, 0.0 as cr, 
-		min(c.sortdate) as sortdate 
-	from vw_cashbook_cashreceipt c 
-		inner join af on af.objid = c.formno 
-	where c.refdate >= $P{fromdate} 
-		and c.refdate <  $P{todate} 
-		and c.collectorid = $P{accountid} 
-		and c.fundid in (${fundfilter})
-		and af.formtype = 'cashticket' 
-	group by c.refdate, c.formno, af.title 
-
-	union all 
-
-	select 
-		r.controldate as refdate, null as controlid, 
-		'remittance' as reftype, null as minseries, null as maxseries, 
-		concat('REMITTANCE - ', r.liquidatingofficer_name) as particulars, 
-		r.controlno as refno, 0.0 as dr, sum(t2.amount)-sum(t2.share) as cr, 
-		r.dtposted as sortdate 
+		1 as idxno, t.refdate, null as controlid, null as formno, null as minseries, null as maxseries, 
+		concat('REMITTANCE - ', t.liquidatingofficer_name) as particulars, t.refno, 
+		sum(t.dr) as dr, sum(t.cr) as cr, min(t.sortdate) as sortdate  
 	from ( 
-	  select v.remittanceid, v.fundid, sum(v.amount) as amount, 0.0 as share   
-	  from vw_remittance_cashreceiptitem v 
-	  where v.remittance_controldate >= $P{fromdate} 
-			and v.remittance_controldate <  $P{todate} 
-			and v.collectorid = $P{accountid} 
-		group by v.remittanceid, v.fundid 
+		select 
+			r.refdate, r.refno, r.liquidatingofficer_name, r.dr, r.cr, r.sortdate 
+		from vw_cashbook_remittance r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
 		union all 
-		select cs.remittanceid, t1.fundid, 0.0 as amount, sum(cs.amount) as share 
-		from ( 
-			select receiptid, fundid, acctid 
-			from vw_remittance_cashreceiptitem v 
-			where v.remittance_controldate >= $P{fromdate} 
-				and v.remittance_controldate <  $P{todate} 
-				and v.collectorid = $P{accountid} 
-			group by receiptid, fundid, acctid
-		)t1, vw_remittance_cashreceiptshare cs 
-		where cs.receiptid = t1.receiptid 
-			and cs.refacctid = t1.acctid 
-		group by cs.remittanceid, t1.fundid 
+		select 
+			r.refdate, r.refno, r.liquidatingofficer_name, -r.dr as dr, -r.cr as cr, r.sortdate 
+		from vw_cashbook_remittance r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+			and r.voiddate <= r.txndate 
+	)t 
+	group by t.refdate, t.refno, concat('REMITTANCE - ', t.liquidatingofficer_name) 
+
+	union all 
+
+	select 
+		1 as idxno, t.refdate, null as controlid, null as formno, null as minseries, null as maxseries, 
+		concat('REMITTANCE - ', t.liquidatingofficer_name) as particulars, t.refno, 
+		-sum(t.dr) as dr, -sum(t.cr) as cr, min(t.sortdate) as sortdate  
+	from ( 
+		select r.refdate, r.refno, r.liquidatingofficer_name, r.dr, r.cr, r.sortdate 
+		from vw_cashbook_remittance_share r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
 		union all 
-	  select remittanceid, fundid, sum(amount) as amount, 0.0 as share  
-	  from vw_remittance_cashreceiptshare v 
-	  where v.remittance_controldate >= $P{fromdate} 
-			and v.remittance_controldate <  $P{todate} 
+		select r.refdate, r.refno, r.liquidatingofficer_name, -r.dr as dr, -r.cr as cr, r.sortdate 
+		from vw_cashbook_remittance_share r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+			and r.voiddate <= r.txndate 
+	)t 
+	group by t.refdate, t.refno, concat('REMITTANCE - ', t.liquidatingofficer_name) 
+
+	union all 
+
+	select 
+		1 as idxno, t.refdate, null as controlid, null as formno, null as minseries, null as maxseries, 
+		concat('REMITTANCE - ', t.liquidatingofficer_name) as particulars, t.refno, 
+		sum(t.dr) as dr, sum(t.cr) as cr, min(t.sortdate) as sortdate  
+	from ( 
+		select r.refdate, r.refno, r.liquidatingofficer_name, r.dr, r.cr, r.sortdate 
+		from vw_cashbook_remittance_share_payable r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+		union all 
+		select r.refdate, r.refno, r.liquidatingofficer_name, -r.dr as dr, -r.cr as cr, r.sortdate 
+		from vw_cashbook_remittance_share_payable r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.voiddate <= r.txndate 
+	)t 
+	group by t.refdate, t.refno, concat('REMITTANCE - ', t.liquidatingofficer_name) 
+
+	union all 
+
+	select 
+		1 as idxno, t.refdate, t.controlid, t.formno, min(t.series) as minseries, min(t.series) as maxseries, 
+		min((case when t.formno = '51' then 'VARIOUS TAXES AND FEES' else t.af_title end)) as particulars,
+		min(concat('*** VOIDED - AF ', t.formno, '#', t.refno,' ***')) as refno, 
+		-sum(t.dr) as dr, -sum(t.cr) as cr, min(t.sortdate) as sortdate 
+	from ( 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, v.dr, v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate >= v.refdate 
 			and v.collectorid = $P{accountid} 
-	  group by remittanceid, fundid 
-	)t2, remittance r, fund  
-	where r.objid = t2.remittanceid 
-		and fund.objid = t2.fundid 
-		and fund.objid in (${fundfilter}) 
-	group by 
-		r.controldate, r.controlno, r.dtposted, r.liquidatingofficer_name
- 
-)t11  
-order by refdate, sortdate 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, -v.dr, -v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid_share v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate >= v.refdate 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select 
+			v.refdate, v.refno, v.refid as controlid, v.formno, v.series, af.title as af_title, v.dr, v.cr, v.sortdate 
+		from vw_cashbook_cashreceiptvoid_share_payable v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.receiptdate >= v.refdate 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+	)t 
+	group by t.refdate, t.controlid, t.formno  
+)tt 
+group by refdate, particulars, refno 
+order by refdate, min(idxno), min(sortdate) 
+
+[findBeginBalance2]
+select sum(dr) as dr, sum(cr) as cr, sum(dr)-sum(cr) as balance  
+from ( 
+	select sum(dr) as dr, sum(cr) as cr 
+	from ( 
+		select sum(c.dr) as dr, 0.0 as cr 
+		from vw_cashbook_cashreceipt c  
+		where c.refdate >= $P{fromdate} 
+			and c.refdate <  $P{todate} 
+			and c.collectorid = $P{accountid} 
+			and c.fundid in (${fundfilter}) 
+		union all 
+		select -sum(c.dr) as dr, 0.0 as cr 
+		from vw_cashbook_cashreceipt_share c  
+		where c.refdate >= $P{fromdate} 
+			and c.refdate <  $P{todate} 
+			and c.collectorid = $P{accountid} 
+			and c.fundid in (${fundfilter}) 
+		union all 
+		select sum(c.dr) as dr, 0.0 as cr 
+		from vw_cashbook_cashreceipt_share_payable c  
+		where c.refdate >= $P{fromdate} 
+			and c.refdate <  $P{todate} 
+			and c.collectorid = $P{accountid} 
+			and c.fundid in (${fundfilter}) 
+	)t0 
+
+	union all 
+
+	select sum(dr) as dr, sum(cr) as cr 
+	from ( 
+		select sum(r.dr) as dr, sum(r.cr) as cr 
+		from vw_cashbook_remittance r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+		union all 
+		select -sum(r.dr) as dr, -sum(r.cr) as cr 
+		from vw_cashbook_remittance r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+			and r.voiddate <= r.txndate 
+	)t0 
+
+	union all 
+
+	select -sum(dr) as dr, -sum(cr) as cr 
+	from ( 
+		select sum(r.dr) as dr, sum(r.cr) as cr 
+		from vw_cashbook_remittance_share r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+		union all 
+		select -sum(r.dr) as dr, -sum(r.cr) as cr 
+		from vw_cashbook_remittance_share r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.liquidatingofficer_objid is not null 
+			and r.voiddate <= r.txndate 
+	)t0 
+
+	union all 
+
+	select sum(dr) as dr, sum(cr) as cr 
+	from ( 
+		select sum(r.dr) as dr, sum(r.cr) as cr 
+		from vw_cashbook_remittance_share_payable r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+		union all 
+		select -sum(r.dr) as dr, -sum(r.cr) as cr 
+		from vw_cashbook_remittance_share_payable r 
+		where r.refdate >= $P{fromdate} 
+			and r.refdate <  $P{todate} 
+			and r.collectorid = $P{accountid} 
+			and r.fundid in (${fundfilter}) 
+			and r.voiddate <= r.txndate 
+	)t0 
+
+	union all 
+
+	select -sum(dr) as dr, -sum(cr) as cr 
+	from ( 
+		select sum(v.dr) as dr, sum(v.cr) as cr 
+		from vw_cashbook_cashreceiptvoid v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select -sum(v.dr) as dr, -sum(v.cr) as cr 
+		from vw_cashbook_cashreceiptvoid_share v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+		union all 
+		select sum(v.dr) as dr, sum(v.cr) as cr 
+		from vw_cashbook_cashreceiptvoid_share_payable v 
+			inner join af on af.objid = v.formno 
+		where v.refdate >= $P{fromdate} 
+			and v.refdate <  $P{todate} 
+			and v.collectorid = $P{accountid} 
+			and v.fundid in (${fundfilter}) 
+	)t0 
+)tt

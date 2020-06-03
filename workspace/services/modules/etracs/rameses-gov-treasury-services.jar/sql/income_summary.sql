@@ -9,8 +9,8 @@ insert into income_summary (
 	liquidationid, liquidationdate, liquidationyear, liquidationmonth, liquidationqtr 
 )
 select 
-	refid, refdate, refno, reftype, acctid, 
-	min(fundid) as fundid, sum(amount) as amount, orgid, collectorid, 
+	refid, refdate, refno, reftype, acctid, fundid, 
+	sum(amount) as amount, orgid, collectorid, 
 	year(refdate) as refyear, month(refdate) as refmonth, 
 	case 
 		when month(refdate) <= 3 then 1
@@ -35,6 +35,7 @@ select
 		when month(refdate) <= 12 then 4
 	end as liquidationqtr  
 from ( 
+
 	select 
 		cv.objid as refid, cv.controldate as refdate, cv.controlno as refno, 'liquidation' as reftype, 
 		ci.item_objid as acctid, ci.item_fund_objid as fundid, sum(ci.amount) as amount, 
@@ -49,11 +50,13 @@ from (
 	group by 
 		cv.objid, cv.controldate, cv.controlno, ci.item_objid, ci.item_fund_objid, 
 		c.org_objid, c.collector_objid, c.remittanceid, r.controldate 
+
 	union all 
+
 	select 
-		cv.objid as refid, cv.controldate as refdate, cv.controlno as refno, 'liquidation' as reftype, 
-		cs.refitem_objid as acctid, null as fundid, -sum(cs.amount) as amount, 
-		c.org_objid as orgid, c.collector_objid as collectorid, c.remittanceid, r.controldate as remittancedate 
+		cv.objid as refid, cv.controldate as refdate, cv.controlno as refno, 'liquidation' as reftype, cs.refitem_objid as acctid, 
+		(select item_fund_objid from cashreceiptitem where receiptid = c.objid and item_objid = cs.refitem_objid limit 1) as fundid, 
+		-cs.amount as amount, c.org_objid as orgid, c.collector_objid as collectorid, c.remittanceid, r.controldate as remittancedate 
 	from collectionvoucher cv 
 		inner join remittance r on r.collectionvoucherid = cv.objid 
 		inner join cashreceipt c on c.remittanceid = r.objid 
@@ -61,10 +64,9 @@ from (
 		left join cashreceipt_void v on v.receiptid = c.objid 
 	where cv.objid = $P{collectionvoucherid} 
 		and v.objid is null 
-	group by 
-		cv.objid, cv.controldate, cv.controlno, cs.refitem_objid, 
-		c.org_objid, c.collector_objid, c.remittanceid, r.controldate 
+
 	union all 
+
 	select 
 		cv.objid as refid, cv.controldate as refdate, cv.controlno as refno, 'liquidation' as reftype, 
 		ia.objid as acctid, ia.fund_objid as fundid, sum(cs.amount) as amount, 
@@ -82,5 +84,5 @@ from (
 		c.org_objid, c.collector_objid, c.remittanceid, r.controldate 
 )t1 
 group by 
-	refid, refdate, refno, reftype, acctid, 
+	refid, refdate, refno, reftype, acctid, fundid,
 	orgid, collectorid, remittanceid, remittancedate 

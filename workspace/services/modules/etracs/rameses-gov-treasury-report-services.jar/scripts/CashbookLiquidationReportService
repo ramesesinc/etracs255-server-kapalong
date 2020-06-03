@@ -18,9 +18,16 @@ class CashbookLiquidationReportService {
 		def result = [:]; 
 		result.items = reportdb.getDetails( params.filter ); 
 
+		def header = params.remove('header'); 
+		header.BEGBALDR = header.BEGBALCR = header.BEGBALANCE = 0.0; 
+
 		def balinfo = reportdb.findBeginBalance( params.filter ); 
 		if ( balinfo?.balance ) { 
-			def m = [refno: '** BEGIN BALANCE **', dr: balinfo.balance, cr: 0.0, amount: balinfo.balance];  
+			header.BEGBALDR = (balinfo.dr ? balinfo.dr : 0.0);
+			header.BEGBALCR = (balinfo.cr ? balinfo.cr : 0.0);
+			header.BEGBALANCE = (balinfo.balance ? balinfo.balance : 0.0);
+
+			def m = [refid: 'begin_balance', refno: '** BEGIN BALANCE **', dr: 0.0, cr: 0.0, balance: balinfo.balance];  
 			if ( result.items ) {
 				result.items.add(0, m); 
 			} 
@@ -29,7 +36,7 @@ class CashbookLiquidationReportService {
 			}
 		} 
 
-		result.header = params.remove('header'); 
+		result.header = header; 
 		return result; 
 	}
 

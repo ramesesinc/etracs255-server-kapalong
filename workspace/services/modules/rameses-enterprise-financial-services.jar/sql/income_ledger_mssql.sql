@@ -38,7 +38,7 @@ from (
 	from vw_account_item_mapping a 
 	where a.maingroupid = $P{maingroupid} ${filter} ${itemacctfilter} 
 	group by 
-		a.itemid, a.itemcode, a.itemtitle, a.leftindex, a.rightindex, a.maingroupid 	
+		a.itemid, a.itemcode, a.itemtitle, a.leftindex, a.rightindex, a.[level], a.maingroupid 	
 )t1 
 group by 
 	t1.objid, t1.code, t1.title, t1.type, 

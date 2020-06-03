@@ -89,19 +89,11 @@ class AFInventoryService {
 		d.indexno = 1;
 
 		//initialize the values
-		d.receivedstartseries = 0;
-		d.receivedendseries = 0;
-		d.beginstartseries = 0;
-		d.beginendseries = 0;
-		d.issuedstartseries = 0;
-		d.issuedendseries = 0;
-		d.endingstartseries = 0;
-		d.endingendseries = 0;
-		d.qtyreceived = 0;
-		d.qtybegin = 0;
-		d.qtyissued = 0;
-		d.qtycancelled = 0;
-		d.qtyending = 0;
+		d.receivedstartseries = d.receivedendseries = null; 
+		d.beginstartseries = d.beginendseries = null; 
+		d.issuedstartseries = d.issuedendseries = null; 
+		d.endingstartseries = d.endingendseries = null; 
+		d.qtyreceived = d.qtybegin = d.qtyissued = d.qtycancelled = d.qtyending = 0;
 
 		def u = [ state: 'PROCESSING' ]; 
 		if ( ref.reftype == 'PURCHASE_RECEIPT') {
@@ -143,10 +135,12 @@ class AFInventoryService {
 			d.issuedstartseries = afc.currentseries;
 			d.issuedendseries = afc.endseries; 
 			d.qtyissued = (d.issuedendseries.toInteger() - d.issuedstartseries.toInteger() ) +1;
-			d.endingstartseries = d.issuedstartseries;
-			d.endingendseries = d.issuedendseries;
-			d.qtyending = d.qtyissued;
+			d.endingstartseries = d.endingendseries = null; 
+			d.qtyending = 0; 
 
+			d.qtyreceived = d.qtyissued; 
+			d.receivedendseries = d.issuedendseries; 
+			d.receivedstartseries = d.issuedstartseries; 
 		}
 		else if ( ref.reftype.matches('TRANSFER|MANUAL_ISSUE')) {
 			d.receivedstartseries = afc.currentseries;
@@ -156,7 +150,9 @@ class AFInventoryService {
 			d.endingendseries = d.receivedendseries;
 			d.qtyending = d.qtyreceived;
 			u.state = 'ISSUED';
-		} else if ( ref.reftype == 'RETURN') {
+
+		} 
+		else if ( ref.reftype == 'RETURN') {
 			d.beginstartseries = afc.currentseries;
 			d.beginendseries = afc.endseries; 
 			d.qtybegin = (d.beginendseries.toInteger() - d.beginstartseries.toInteger() ) +1;

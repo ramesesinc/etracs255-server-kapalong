@@ -29,16 +29,45 @@ class RAAFReportService {
 		def enddate = DateUtil.add( startdate, '1M' ); 	
 		def collectorid = (params.collector? params.collector.objid: env.USERID);
 		def items = adb.getReportData([startdate: startdate, enddate: enddate, collectorid: collectorid]); 
+
+		def delitems = [];
+		def dmap = [enddate: enddate]; 
+		items.findAll{( it.iflag == 1 )}.each{ o-> 
+			dmap.controlid = o.controlid; 
+			def afd = adb.findLastDetail( dmap ); 
+			if ( afd?.issuedtoid.toString() != o.ownerid ) {
+				delitems << o; 
+			}
+		} 
+		items.removeAll( delitems ); 
+		delitems.clear(); 
+
 		if ( !items ) throw new Exception('No record(s) found                  ');
 
 		items.eachWithIndex{ o,idx-> o.lineno = idx; } 
+
+		items.findAll{ it.qtyreceived > 0 }.each{
+			if ( it.qtybegin > 0 ) {
+				it.qtybegin = 0; 
+				it.beginendseries = it.beginstartseries = null; 
+			} 
+		}
 
 		def serials = items.findAll{( it.formtype == 'serial' )}
 		def nonserials = items.findAll{( it.formtype != 'serial' )}
  		items.clear(); 
 
- 		buildRAAFSerial( items, serials ); 
- 		buildRAAFNonSerial( items, nonserials )
+ 		def condensed = params.condensed.toString().matches('true|1'); 
+ 		if ( condensed ) {
+	 		buildRAAFSerialCondensed( items, serials ); 
+	 		buildRAAFNonSerialCondensed( items, nonserials );
+		} else {
+	 		buildRAAFSerial( items, serials ); 
+	 		buildRAAFNonSerial( items, nonserials );		
+		}
+
+		if ( items.isEmpty()) throw new Exception('No record(s) found');
+
 		items.sort{ it.lineno } 	
 		items.each{
 			it.qtyreceived = (it.qtyreceived ? it.qtyreceived : null); 
@@ -47,12 +76,13 @@ class RAAFReportService {
 			it.qtyending = (it.qtyending ? it.qtyending : null); 
 		}
 
+
 		def data = [:]
 		data.items = items;
 		data.info = [
 			COLLECTORNAME	: params.collector ? params.collector.fullname : env.FULLNAME,
 			COLLECTORTITLE  : params.collector ? params.collector.title : env.JOBTITLE,
-			PERIOD			: 'FOR THE MONTH OF ' + params.month.caption + ', ' + params.year,
+			PERIOD			: 'FOR THE MONTH OF ' + params.month.caption.toString().toUpperCase() +' '+ params.year,
 		]; 
 		return data; 
 	} 
@@ -279,30 +309,76 @@ class RAAFReportService {
 			def receivedendseries = vv.collect{ it.receivedendseries }.findAll{( it )}.max{( it )}
 			def beginstartseries = vv.collect{ it.beginstartseries }.findAll{( it )}.min{( it )}
 			def beginendseries = vv.collect{ it.beginendseries }.findAll{( it )}.max{( it )}
-			def endingstartseries = vv.collect{ it.endingstartseries }.findAll{( it )}.min{( it )}
-			def endingendseries = vv.collect{ it.endingendseries }.findAll{( it )}.max{( it )}
 
 			fo.qtyreceived = vv.findAll{( it.qtyreceived > 0 )}.sum{ it.qtyreceived } 
 			if ( fo.qtyreceived == null ) fo.qtyreceived = 0; 
 
-			fo.qtyending = vv.findAll{( it.qtyending > 0 )}.sum{ it.qtyending } 
-			if ( fo.qtyending == null ) fo.qtyending = 0; 
-
 			fo.qtybegin = vv.findAll{( it.qtybegin > 0 )}.sum{ it.qtybegin } 
 			if ( fo.qtybegin == null ) fo.qtybegin = 0; 
 
+			if ( receivedstartseries != null && receivedstartseries > 0 ) { 
+				beginstartseries = beginendseries = null; 
+				fo.qtybegin = 0; 
+			} 
+			if ( beginstartseries != null && beginstartseries > 0 ) { 
+				receivedstartseries = receivedendseries = null; 
+				fo.qtyreceived = 0; 
+			} 
+
+			if ( fo.qtyreceived == null ) fo.qtyreceived = 0; 
+			if ( fo.qtybegin == null ) fo.qtybegin = 0; 
+			if ((fo.qtyreceived + fo.qtybegin) == 0) return; 
+
+			fo.qtyissued = 0; 
 			fo.issuedstartseries = fo.issuedendseries = null; 
+
 			fo.receivedstartseries = receivedstartseries; 
 			fo.receivedendseries = receivedendseries; 
 			fo.beginstartseries = beginstartseries; 
 			fo.beginendseries = beginendseries; 
-			fo.endingstartseries = endingstartseries; 
-			fo.endingendseries = endingendseries
 			fo.formindex = 0; 
-			result << fo; 			
+
+			if ( fo.qtyreceived > 0 ) {
+				fo.endingstartseries = receivedstartseries; 
+				fo.endingendseries = receivedendseries; 
+				fo.qtyending = fo.qtyreceived; 
+			}
+			else if ( fo.qtybegin > 0 ) {
+				fo.endingstartseries = beginstartseries; 
+				fo.endingendseries = beginendseries; 
+				fo.qtyending = fo.qtybegin; 	
+			}
+			result << fo; 
 		}
+
 		serials.findAll{( it.qtyissued > 0 )}.each{ o-> 
 			o.formindex = 0;
+
+			if ( o.receivedstartseries != null && o.receivedstartseries > 0 ) {
+				o.beginstartseries = o.beginendseries = null; 
+				o.qtybegin = 0; 
+			}
+			if ( o.beginstartseries != null && o.beginstartseries > 0 ) {
+				o.receivedstartseries = o.receivedendseries = null; 
+				o.qtyreceived = 0; 
+			}
+
+			o.qtyending = 0; 
+			o.endingstartseries = o.endingendseries = null; 
+
+			if ( o.qtyreceived == null ) o.qtyreceived = 0; 
+			if ( o.qtybegin == null ) o.qtybegin = 0; 
+			if ( o.qtyissued == null ) o.qtyissued = 0; 
+
+			o.endingstartseries = o.issuedendseries+1; 
+			if ( o.endingstartseries > o.endseries ) {
+				o.endingstartseries = o.endingendseries = null; 
+				o.qtyending = 0; 
+			}
+			else {
+				o.endingendseries = o.endseries; 
+				o.qtyending = (o.endingendseries - o.endingstartseries)+1;
+			}
 			result << o; 
 		} 
 	} 
@@ -316,18 +392,207 @@ class RAAFReportService {
 			fo.beginstartseries = fo.beginendseries = null;   
 			fo.issuedstartseries = fo.issuedendseries = null;   
 			fo.endingstartseries = fo.endingendseries = null;   
-			fo.qtyreceived = v.sum{ it.qtyreceived } 
-			fo.qtyending = v.sum{ it.qtyending }
-			fo.qtyissued = v.sum{ it.qtyissued }
-			fo.qtybegin = v.sum{ it.qtybegin } 
+			fo.qtyreceived = v.sum{( it.qtyreceived ? it.qtyreceived : 0 )} 
+			fo.qtyissued = v.sum{( it.qtyissued ? it.qtyissued : 0 )}
+			fo.qtybegin = v.sum{( it.qtybegin ? it.qtybegin : 0 )} 
+
+			if ( fo.qtyreceived == null ) fo.qtyreceived = 0; 
+			if ( fo.qtyissued == null ) fo.qtyissued = 0; 
+			if ( fo.qtybegin == null ) fo.qtybegin = 0; 
+
+			fo.qtyending = (fo.qtyreceived + fo.qtybegin) - fo.qtyissued; 
 			fo.formindex = 1; 
 
 			if ( !fo.qtyreceived ) fo.qtyreceived = null; 
 			if ( !fo.qtyending ) fo.qtyending = null; 
 			if ( !fo.qtyissued ) fo.qtyissued = null; 
 			if ( !fo.qtybegin ) fo.qtybegin = null; 
-
 			result << fo; 
 		} 
+	}
+
+	private void buildRAAFNonSerialCondensed( result, nonserials ) {
+		nonserials.groupBy{ it.formno }.each{ kk,vv-> 
+			vv.sort{ it.lineno } 
+
+			def fo = vv.first(); 
+			fo.endingstartseries = fo.endingendseries = fo.qtyending = null; 
+			fo.receivedstartseries = fo.receivedendseries = null; 
+			fo.beginstartseries = fo.beginendseries = null; 
+			fo.issuedstartseries = fo.issuedendseries = null; 
+
+			def qty = null;
+			vv.findAll{ it.qtyreceived > 0 }.each{ 
+				qty = (qty ? qty : 0) + it.qtyreceived; 
+			} 
+			fo.qtyreceived = qty;
+
+			qty = null; 
+			vv.findAll{ it.qtybegin > 0 }.each{ 
+				qty = (qty ? qty : 0) + it.qtybegin; 
+			} 
+			fo.qtybegin = qty;
+
+			qty = null; 
+			vv.findAll{ it.qtyissued > 0 }.each{ 
+				qty = (qty ? qty : 0) + it.qtyissued; 
+			} 
+			fo.qtyissued = qty;
+
+			qty = null; 
+			if ( fo.qtyreceived == null ) fo.qtyreceived = 0; 
+			if ( fo.qtybegin == null ) fo.qtybegin = 0; 
+			if ( fo.qtyissued == null ) fo.qtyissued = 0; 
+
+			fo.qtyending = (fo.qtyreceived + fo.qtybegin) - fo.qtyissued; 
+
+			if ( fo.qtyreceived == 0 ) fo.qtyreceived = null; 
+			if ( fo.qtybegin == 0 ) fo.qtybegin = null; 
+			if ( fo.qtyissued == 0 ) fo.qtyissued = null; 			
+			if ( fo.qtyending == 0 ) fo.qtyending = null; 
+			
+			result << fo; 
+		} 
+	}
+
+	private void buildRAAFSerialCondensed( result, serials ) {
+		def groupindex = 1000; 
+		serials.groupBy{[ formno: it.formno, prefix: it.prefix, suffix: it.suffix ]}.each{ k,v-> 
+			v.sort{ it.startseries } 
+
+			def nextseries = 0; 
+			v.each{ vo-> 
+				if ( vo.startseries == nextseries ) {
+					vo.groupindex = groupindex;  
+				} else {
+					vo.groupindex = groupindex + 1; 
+				} 
+				groupindex = vo.groupindex; 
+				nextseries = vo.nextseries; 
+			} 			
+		} 
+
+		serials.groupBy{ it.groupindex }.each{ kk,vv-> 
+			vv.sort{ it.startseries } 
+
+			int idx = 0;
+			int size = vv.size(); 
+			def groups = [];
+			while ( idx < size ) {
+				def fo = vv[idx];
+				if ( fo.qtyissued == 0 ) {
+					def m = [startseries: fo.startseries, items: [fo]];
+					m.items.addAll( findStubs( idx+1, vv ));  
+					groups << m; 
+					idx += m.items.size(); 
+				}
+				else {
+					def m = [startseries: fo.startseries, items: [fo]];
+					m.items.addAll( findIssuedStubs( idx+1, vv )); 
+					
+					fo = m.items.last(); 
+					idx = vv.indexOf( fo );
+
+					m.items.addAll( findStubs( idx+1, vv ));  
+					groups << m; 
+					idx += m.items.size(); 
+				}
+			}
+
+			groups.each{ g-> 
+				def fo = condensedSerialGroup( g ); 
+				if ( fo ) result << fo;
+			}
+		}
+	} 
+
+	def findStubs( startidx, stubs ) {
+		def results = [];
+		def size = stubs.size(); 
+		for (int idx=startidx; idx < size; idx++) {
+			def o = stubs[idx]; 
+			if ( o.qtyissued == 0 ) {
+				results << o; 
+			} else {
+				break; 
+			}
+		}
+		return results; 
+	}
+
+	def findIssuedStubs( startidx, stubs ) {
+		def results = [];
+		def size = stubs.size(); 
+		for (int idx=startidx; idx < size; idx++) {
+			def o = stubs[idx]; 
+			if ( o.qtyissued > 0 ) {
+				results << o; 
+			} else {
+				break; 
+			}
+		}
+		return results; 
+	}
+
+	def condensedSerialGroup( g ) {
+		def vv = g.items;
+		def fo = vv.first(); 
+		fo.endingstartseries = fo.endingendseries = fo.qtyending = null; 
+
+		def qty = null;
+		def endseries = null;
+		def startseries = null; 
+		vv.findAll{ it.qtyreceived > 0 }.each{ 
+			qty = (qty ? qty : 0) + it.qtyreceived; 
+			endseries = Math.max( it.receivedendseries, (endseries ? endseries : 0)); 
+			startseries = Math.min( it.receivedstartseries, (startseries ? startseries : Long.MAX_VALUE )); 
+		} 
+		fo.qtyreceived = qty;
+		fo.receivedendseries = endseries; 
+		fo.receivedstartseries = startseries; 
+
+		startseries = endseries = qty = null; 
+		vv.findAll{ it.qtybegin > 0 }.each{ 
+			qty = (qty ? qty : 0) + it.qtybegin; 
+			endseries = Math.max( it.beginendseries, (endseries ? endseries : 0)); 
+			startseries = Math.min( it.beginstartseries, (startseries ? startseries : Long.MAX_VALUE )); 
+		} 
+		fo.qtybegin = qty;
+		fo.beginendseries = endseries; 
+		fo.beginstartseries = startseries; 
+
+		startseries = endseries = qty = null; 
+		vv.findAll{ it.qtyissued > 0 }.each{ 
+			qty = (qty ? qty : 0) + it.qtyissued; 
+			endseries = Math.max( it.issuedendseries, (endseries ? endseries : 0)); 
+			startseries = Math.min( it.issuedstartseries, (startseries ? startseries : Long.MAX_VALUE )); 
+		} 
+		fo.qtyissued = qty;
+		fo.issuedendseries = endseries; 
+		fo.issuedstartseries = startseries; 
+		startseries = endseries = qty = null; 
+
+		if ( fo.qtyreceived == null ) fo.qtyreceived = 0; 
+		if ( fo.qtybegin == null ) fo.qtybegin = 0; 
+		if ( fo.qtyissued == null ) fo.qtyissued = 0; 
+
+		endseries = [fo.receivedendseries, fo.beginendseries].findAll{ it }.max{ it } 
+		if ( fo.qtyissued > 0 ) {
+			startseries = fo.issuedendseries+1; 
+			if ( startseries <= endseries ) {
+				fo.qtyending = (endseries - startseries) + 1; 
+				fo.endingendseries = endseries; 
+				fo.endingstartseries = startseries; 
+			} 
+		}
+		else {
+			startseries = [fo.receivedstartseries, fo.beginstartseries].findAll{ it }.min{ it }	
+			fo.qtyending = fo.qtyreceived + fo.qtybegin; 
+			fo.endingendseries = endseries; 
+			fo.endingstartseries = startseries; 
+		}
+
+		vv = null; 
+		return fo; 
 	}
 }

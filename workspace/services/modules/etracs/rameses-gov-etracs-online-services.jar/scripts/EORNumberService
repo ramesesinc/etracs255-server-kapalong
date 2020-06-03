@@ -1,15 +1,12 @@
 import com.rameses.annotations.*
-import com.rameses.util.*
-import com.rameses.common.*
-import treasury.utils.*;
 
 class EORNumberService {
 
     @Env 
-    def env 
+    def env;
 
     @Service("DateService")
-    def dateService
+    def dateService;
 
     @DataContext('paymentpartner')
     def partnerEm;
@@ -18,7 +15,7 @@ class EORNumberService {
     def num_db;
 
     @Service('OrgService')
-    def orgSvc 
+    def orgSvc;
 
     @ProxyMethod(local=true)
     public def getNextEORNumber( def partnerid ) {
@@ -26,7 +23,10 @@ class EORNumberService {
         def orgid = (org?.objid ? org.objid : '');
 
         def part = partnerEm.find([ objid: partnerid ]).first(); 
-        def indexno = (part?.indexno ? part.indexno : ''); 
+        if ( !part ) throw new Exception('Partner code '+ partnerid +' does not exist');
+        if ( !part.indexno ) throw new Exception('Partner code '+ partnerid +' must have an index number');
+
+        def indexno = part.indexno.toString(); 
 
         String prefix = 'EOR'+ indexno + orgid + dateService.getServerYear();
         def rec = num_db.find([ objid: prefix ]).first();

@@ -8,9 +8,6 @@ class CashReceiptInterceptor {
 	@DataContext('checkpayment')
 	def check_db;
 
-	@DataContext('eftpayment')
-	def eft_db;
-
 	@Service("NumberService")
 	def numSvc;
 
@@ -34,19 +31,9 @@ class CashReceiptInterceptor {
 		} 
 
 		data.paymentitems.each{ 
-			if ( it.reftype.toString().toUpperCase() == 'CHECK') {
-				def fldnames = 'objid,refno,refdate,bank.*';
-				def chk = check_db.find([ objid: it.refid ]).select( fldnames ).first(); 
-				if ( chk ) it.check = chk;
-			}
-			else if ( it.reftype.toString().toUpperCase() == 'EFT') {
-				def fldnames = 'objid,refno,refdate,bankaccount.bank.*';
-				def chk = eft_db.find([ objid: it.refid ]).select( fldnames ).first(); 
-				if ( chk ) {
-					it.check = chk;
-					it.check.bank = chk.bankaccount?.bank;
-				}
-			} 
+			def fldnames = 'objid,refno,refdate,bank.*';
+			def chk = check_db.find([ objid: it.checkid ]).select( fldnames ).first(); 
+			if ( chk ) it.check = chk;
 		}
 		
 		data.payerdetails = data.paidby + "\n" + data.paidbyaddress; 

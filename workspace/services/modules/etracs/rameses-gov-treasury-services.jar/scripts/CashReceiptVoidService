@@ -23,6 +23,9 @@ class CashReceiptVoidService  {
 	@Env
 	def env;
 	
+	@Service 
+	def self;
+
 	@Service("DateService")
 	def dateService;
 	
@@ -37,7 +40,6 @@ class CashReceiptVoidService  {
 
 	@Service("ActionPermissionService")
 	def actionPermissionSvc;
-
 
 	@ProxyMethod
 	public def post( def p ) { 
@@ -123,4 +125,23 @@ class CashReceiptVoidService  {
 		v.remarks = params.reason;
 		txnlog.create( v );  
 	}
+
+	@ProxyMethod
+	public def postReceipts( param ) { 
+		if ( !param.receipts ) throw new Exception('receipts parameter is required'); 
+
+		param.remove('receipt'); 
+
+		def receipts = param.remove('receipts'); 
+		receipts.each{ 
+			def rct = cashreceipt_db.find([ objid: it.objid ]).first(); 
+			if ( !rct ) return; 
+
+			def voidrct = [:]; 
+			voidrct.putAll( param ); 
+			voidrct.receipt = rct; 
+			voidrct.objid = rct.objid; 
+			self.post( voidrct );  
+		} 
+	} 
 }

@@ -22,18 +22,18 @@ INNER JOIN af on af.objid = u.itemid;
 <schema>
 	<element tablename="vw_afunit">
 		<field name="objid" primary="true"/>
-		<field name="title" searchable="true"/>
-		<field name="usetype" />
-		<field name="serieslength" />
-		<field name="system" />
-		<field name="denomination" />
-		<field name="formtype" searchable="true"/>
-		<field name="itemid" searchable="true"/>
-		<field name="unit" searchable="true"/>
-		<field name="qty" />
-		<field name="saleprice" />
-		<field name="interval" />
-		<field name="cashreceiptprintout" />
-		<field name="cashreceiptdetailprintout" />
+		<field name="title" caption="Title" searchable="true"/>
+		<field name="usetype" caption="UseType"/>
+		<field name="serieslength" caption="SeriesLength"/>
+		<field name="system" caption="System"/>
+		<field name="denomination" caption="Denomination"/>
+		<field name="formtype" caption="FormType" searchable="true"/>
+		<field name="itemid" caption="FormNo" searchable="true"/>
+		<field name="unit" caption="Unit" searchable="true"/>
+		<field name="qty" caption="Qty"/>
+		<field name="saleprice" caption="SalePrice"/>
+		<field name="interval" caption="Interval"/>
+		<field name="cashreceiptprintout" caption="Printout"/>
+		<field name="cashreceiptdetailprintout" caption="DetailPrintout"/>
 	</element>
 </schema>

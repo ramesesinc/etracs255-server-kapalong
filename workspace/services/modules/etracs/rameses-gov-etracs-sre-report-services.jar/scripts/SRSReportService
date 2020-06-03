@@ -34,7 +34,7 @@ class SRSReportService {
 		def filters = [' 1=1 '];
 		if ( params.accttype?.objid ) {
 			params.accttypeid = params.accttype.objid; 
-			filters << ''' a.accttype = $P{accttypeid} '''; 
+			filters << ''' itemtype = $P{accttypeid} '''; 
 		}
 		if ( params.collector?.objid ) { 
 			params.collectorid = params.collector.objid; 
@@ -42,15 +42,14 @@ class SRSReportService {
 		} 
 
 		if ( params.fundgroupid ) {
-			def fundstr = em.getFundsByGroup([ groupid: params.fundgroupid ]).collect{ it.objid }.join("','"); 
-			filters << " a.fundid IN ('"+ fundstr +"') ";
+			filters << ''' fundgroupid = $P{fundgroupid} '''; 
 		} 
 		else if ( params.fundid ) { 
 			filters << ''' a.fundid = $P{fundid} '''; 
 		} 
 
-		params.filter = ' AND '+ filters.join(' AND '); 
-
+		params.filters = ' AND '+ filters.join(' AND '); 
+		
 		def items = null; 
 		def postingtypeid = params.postingtype?.objid.toString().toUpperCase(); 
 		if ( postingtypeid == 'BY_LIQUIDATION_DATE' ) {
@@ -64,23 +63,99 @@ class SRSReportService {
 		if ( items.find{ it.amount > 0 } == null )  
 			throw new Exception('No available income summary'); 
 
-		items.findAll{ it.type.toString().matches('root|group')}.each{ g-> 
-			def amt = items.findAll{( it.leftindex >= g.leftindex && it.leftindex < g.rightindex && it.type.toString().matches('item|detail'))}.sum{( it.amount ? it.amount: 0.0)} 
-			g.amount = (amt ? amt : 0.0); 
+		def accounts = em.getAccounts([ maingroupid: params.maingroupid ]);
+		if ( !accounts ) throw new Exception('No accounts found for '+ params.maingroupid +' group'); 
+
+		def accttargets = em.getAcctTargets([ maingroupid: params.maingroupid, startdate: params.startdate ]); 
+		accttargets.each{ t-> 
+			if ( !t.target ) return; 
+
+			def a = accounts.find{ it.objid == t.acctid } 
+			if ( a ) a.target = t.target; 
 		}
 
-		if ( params.type.toString() == 'standard') {
-			items.removeAll( items.findAll{( it.type.toString().matches('detail|itemaccount'))} ); 
+		items.groupBy{ it.acctid }.each{ k,v-> 
+			def a = accounts.find{ it.objid == k }
+			if ( a ) { 
+				a.amount = v.sum{( it.amount ? it.amount : 0.0 )} 
+				if ( a.amount == null ) a.amount = 0.0; 
+
+				a.itemamount = a.amount; 
+				a.unmapped = 0;
+
+				a.items = v; 
+				a.items.each{
+					it.level = a.level + 1; 
+					it.acctcode = it.itemcode; 
+					it.accttitle = it.itemtitle; 
+					buildItemTitle( it ); 
+				}
+			} 
+		}
+
+		def amtlist = accounts.findAll{( it.target > 0 )} 
+		def mlevel = amtlist.max{( it.level ? it.level : 0 )}?.level; 
+		if ( !mlevel ) mlevel = 0; 
+
+		while (mlevel > 0) {
+			accounts.findAll{( it.level == mlevel )}.each{ n-> 
+				def amount = accounts.findAll{( it.groupid == n.objid )}.sum{( it.target ? it.target : 0.0 )} 
+				n.target = (n.target ? n.target : 0.0) + (amount ? amount : 0.0);
+			} 
+			mlevel--; 
 		} 
 
-		if ( params.opthidenoactual.toString() == 'true') {
-			items.removeAll( items.findAll{( it.amount == 0 )} ); 
+		amtlist = accounts.findAll{( it.amount > 0 )} 
+		mlevel = amtlist.max{( it.level ? it.level : 0 )}?.level; 
+		if ( !mlevel ) mlevel = 0; 
+
+		while (mlevel > 0) {
+			accounts.findAll{( it.level == mlevel )}.each{ n-> 
+				def amount = accounts.findAll{( it.groupid == n.objid )}.sum{( it.amount ? it.amount : 0.0 )} 
+				n.amount = (n.amount ? n.amount : 0.0) + (amount ? amount : 0.0);
+			} 
+			mlevel--; 
 		} 
 
-		def totaltarget = 0.0;
-		items.each{
-			def str = buildAcctTitle( it.type, it ); 
-			it.title = (it.level > 1 ? "    ".multiply(it.level) : "") + str; 
+		if ( params.opthidenoactual.toString() == 'true') { 
+			accounts.removeAll( accounts.findAll{( it.amount == 0.0 && (it.target ? it.target : 0) == 0 )} ); 
+		} 
+
+		if ( params.type == 'itemaccount' ) { 
+			def itemaccounts = []; 
+			accounts.each{ aa-> 
+				aa.items.each{ bb-> 
+					if ( !bb.amount ) return;
+
+					bb.groupid = aa.objid; 
+					bb.type = 'itemaccount';
+					itemaccounts << bb; 
+				}
+			}
+			accounts.addAll( itemaccounts );
+			itemaccounts.clear();  
+		}
+		else if ( params.type == 'extended' ) {
+			/* do not remove the account detail types */
+		}
+		else {
+			accounts.removeAll( accounts.findAll{( it.type == 'detail' )} ); 
+		}		
+
+		def totaltarget = 0.0; 
+		def finallist = []; 
+		accounts.findAll{( it.type == 'root' )}.each{
+			buildTree( it, accounts, finallist ); 
+			totaltarget += (it.target ? it.target : 0.0); 
+		}
+
+		finallist.findAll{( it.target == 0 )}.each{ 
+			it.target = null; 
+		} 
+
+		items.clear(); 
+		items = finallist;
+		items.each{ 
 			it.actual = it.amount; 
 			if ( it.target && it.target > 0 ) {
 				it.excess = it.target - it.actual; 
@@ -92,7 +167,6 @@ class SRSReportService {
 
 				it.percentagevalue = it.percentage * 100.0; 
 			} 
-			if ( it.target && it.target > 0 ) totaltarget += it.target; 
 		}
 
 		def p = [:]; 
@@ -115,19 +189,34 @@ class SRSReportService {
 		return p; 
 	}
 
-	private def buildAcctTitle( type, data ) {
-		def stype = type.toString();
-		if ( stype.matches('root|group|item|detail|itemaccount') ) {
-    		def buff = new StringBuilder();
-    		if ( stype == 'itemaccount' ) buff.append('* '); 
-    		if ( data.account?.code ) buff.append( data.account.code ).append('   '); 
-    		if ( data.account?.title ) buff.append( data.account.title );
-    		return buff.toString();  
-    	} 
-    	else { 
-    		return data.account?.title; 
-    	}
-	} 
+
+	private void buildItemTitle( o ) {
+		o.prefix = ''; 
+		if ( o.level > 1 ) {
+			o.prefix = ('    ' * o.level-1); 
+		} 
+
+		o.acctcode = (o.acctcode == null ? '' : o.acctcode); 
+
+		if ( o.type == 'root') {
+			o.title = ''+ o.acctcode +'   '+ o.accttitle +'*'; 
+		} 
+		else if ( o.type == 'group') {
+			o.title = ''+ o.prefix + o.acctcode +'   '+  o.accttitle; 
+		}
+		else {
+			o.title = ''+ o.prefix + (o.type=='itemaccount' ? '* ': '') +'  '+ o.acctcode +'   '+ o.accttitle; 
+		}
+	}
+
+	private void buildTree( node, sourcelist, targetlist ) {
+		targetlist << node; 
+		buildItemTitle( node ); 
+		sourcelist.findAll{( it.groupid == node.objid.toString() )}.each{
+			buildTree( it, sourcelist, targetlist ); 
+		}
+	}
+
 
 	void buildParams( params ) {
 		params.filter = '';

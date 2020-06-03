@@ -99,7 +99,7 @@ LEFT JOIN district d ON b.parentid = d.objid
 LEFT JOIN city c ON d.parentid = c.objid 
 LEFT JOIN municipality m ON b.parentid = m.objid 
 LEFT JOIN province p ON m.parentid = p.objid 
-WHERE b.parentid LIKE $P{parentid}  
+WHERE (c.objid LIKE $P{rootid}  OR m.objid LIKE $P{rootid}) 
 ORDER BY b.name 
 
 
@@ -125,7 +125,9 @@ ORDER BY b.name
 [findBarangayParentLguInfo]
 SELECT
 	CASE WHEN m.objid IS NOT NULL THEN m.objid ELSE c.objid END AS objid,
-	CASE WHEN	m.objid IS NOT NULL THEN 'MUNICIPALITY' ELSE 'CITY' END as lgutype
+	CASE WHEN m.objid IS NOT NULL THEN 'MUNICIPALITY' ELSE 'CITY' END as lgutype,
+	CASE WHEN m.objid IS NOT NULL THEN m.name ELSE c.name END AS name,
+	CASE WHEN m.objid IS NOT NULL THEN m.fullname ELSE c.fullname END AS fullname 
 FROM barangay b
 	LEFT JOIN municipality m ON b.parentid = m.objid 
 	LEFT JOIN district d ON b.parentid = d.objid 
