@@ -1,0 +1,122 @@
+<app>
+<env>
+app.title=ETRACS 2.5 build 05 20191015 patch v255-03019-012 (Municipality Of Kapalong)
+app.host=192.168.3.251:8070
+app.cluster=osiris3
+app.context=etracs25
+app.help=http://192.168.3.251:8080/help
+app.loader=com.rameses.osiris2.client.OsirisAppLoader
+readTimeout=300000
+connectionTimeout=5000
+filemgmt.enabled=false
+
+ws.host=192.168.3.251:8060
+#res.host=localhost
+app.custom=kapalong
+report.custom=kapalong
+</env>
+<modules>
+
+	<!-- custom main libraries -->
+	<module file="custom/gov-lgu-kapalong.jar" version="1.10"/>
+	<module file="custom/gov-lgu-ctc.jar" version="1.02"/>
+	<module file="custom/gov-lgu-ddn-rptis-report.jar" version="1.00"/>
+ 	<module file="custom/gov-lgu-ddn-rptis-landtax-taxclearance.jar" version="1.02"/>
+	<module file="custom/ddn-bpls-business-tax-billing-statement.jar" version="1.00"/>
+	<module file="custom/bpls-unifiedform.jar" version="1.00"/>
+	<module file="custom/gov-lgu-ddn-rptis-landtax-abstractofcollection-report.jar" version="1.01"/>
+	<module file="custom/gov-lgu-ddn-rptis-landtax-nod-report.jar" version="1.00"/>
+	<module file="custom/gov-lgu-ddn-rptcompromisestatementofaccount.jar" version="1.00"/>
+	<module file="custom/gov-lgu-ddn-realtytaxledgerbilling.jar" version="1.00"/>
+		
+	<!-- assessor custom report -->
+	<module file="custom/gov-lgu-ddn-faaslandmodified.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-faasmiscmodified.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-faasmachmodified.jar" version="2.58"/>
+	<module file="custom/gov-lgu-ddn-faasbldgmodified.jar" version="2.58"/>
+	<module file="custom/gov-lgu-ddn-tmcrmodified.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-taxdecmodified.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-noticeofcancellationreport.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-noticeofassessmentreport.jar" version="2.56"/>
+	<module file="custom/gov-lgu-ddn-assessmentrolltaxable.jar" version="2.55"/> 
+	<module file="custom/gov-lgu-ddn-assessmentrollexempt.jar" version="2.55"/> 
+	<module file="custom/gov-lgu-ddn-assessmentrollcontinuousexempt.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-assessmentrollcontinuoustaxable.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-reportonrealpropertyassessment.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-monthlyassessmentreport.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-accomplishmentrealpropertyassessmentreport.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-land_specificclass_listing.jar" version="2.55"/>
+	
+	<!-- assessor transaction custom report -->
+	<module file="custom/gov-lgu-ddn-subdivisionsummaryreportmodified.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-consolidationsummaryreportmodified.jar" version="2.55"/>
+
+	<!-- core libraries -->
+	<module file="core/osiris2-client-themes.jar" version="2.56"/>
+	<module file="core/osiris2-client-ui.jar" version="2.56"/>
+	<module file="core/osiris2-draw.jar" version="2.56"/>
+	<module file="core/osiris2-framework.jar" version="2.57"/>
+	<module file="core/osiris2-report.jar" version="2.57"/>
+	<module file="core/rameses-client-ui.jar" version="2.57"/>
+	<module file="core/rameses-client-ui-bio.jar" version="2.57"/>
+	<module file="core/rameses-client-ui-jfx.jar" version="2.57"/>
+	<module file="core/rameses-common2.jar" version="2.57"/>
+	<module file="core/rameses-custom-impl.jar" version="2.57"/>
+	<module file="core/rameses-jdbc16.jar" version="2.57"/>
+	<module file="core/rameses-seti.jar" version="2.57"/>
+	<module file="core/rameses-file-mgmt.jar" version="2.57"/>
+
+	<!-- 3rd party libs --> 
+		<!-- <module file="libs/commons-net-3.5.jar" version="2.5"/> -->
+ 
+	<!-- shared libraries -->
+	<module file="shared/client-system.jar" version="2.56"/>
+	<module file="shared/client-ui-extended.jar" version="2.56"/>
+	<module file="shared/rameses-client-menu.jar" version="2.56"/>
+	<module file="shared/rameses-client-report.jar" version="2.56"/>
+	<module file="shared/rameses-rules-mgmt.jar" version="2.56"/>
+	<module file="shared/rameses-workflow-mgmt.jar" version="2.56"/>
+	<module file="shared/rameses-enterprise.jar" version="2.56"/>
+	<module file="shared/rameses-enterprise-admin.jar" version="2.56"/>
+	<module file="shared/rameses-enterprise-entity.jar" version="2.56"/>
+	<module file="shared/rameses-enterprise-financial.jar" version="2.56"/>
+ 
+	<!-- main app libraries -->
+	<module file="rameses-client-notification2.jar" version="2.56"/>
+	<module file="rameses-treasury-common.jar" version="2.56"/>
+	<module file="rameses-etracs-main.jar" version="2.56"/>
+	<module file="rameses-gov-depositslip.jar" version="2.56"/>
+	<module file="rameses-gov-epayment.jar" version="2.56"/>
+	<module file="rameses-gov-epayment-report.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-entity.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-sre-report.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-tools.jar" version="2.56"/>
+	<module file="rameses-gov-lgu.jar" version="2.56"/>
+	<module file="rameses-gov-lgu-treasury.jar" version="2.56"/>
+	<module file="rameses-gov-treasury.jar" version="2.56"/>
+	<module file="rameses-gov-treasury-report.jar" version="2.56"/>
+	<module file="rameses-gov-treasury-tool.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-ngas-report.jar" version="2.56"/>
+
+	<module file="rameses-gov-etracs-bpls.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-bpls-reports.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-bpls-ceo.jar" version="2.56"/>
+
+    <!-- rptis common -->
+	<module file="rameses-gov-etracs-rptis.jar" version="2.57"/>
+	<module file="rameses-gov-etracs-rptis-report.jar" version="2.58"/>
+	<module file="rameses-gov-etracs-rptis-landtax.jar" version="2.57"/>
+	<module file="rameses-gov-etracs-rptis-landtax-report.jar" version="2.57"/>
+	<module file="rameses-gov-etracs-signatory-template.jar" version="2.57"/>
+	<module file="rameses-gov-etracs-rptis-sync.jar" version="2.60" />
+
+    <!-- rptis lgu specific -->
+	<module file="rameses-gov-etracs-rptis-municipality.jar" version="2.56"/>
+	<module file="rameses-gov-etracs-rptis-transmittal.jar" version="2.56"/>
+
+
+	<!-- plugin modules -->
+	<module file="plugins/rameses-gov-etracs-ctc.jar" version="2.55" />
+	<module file="plugins/rameses-gov-etracs-rptis-landtax-auction.jar" version="2.56" />
+</modules>
+</app>

@@ -1,0 +1,52 @@
+================================================================
+2019-07-19: ETRACS 2.5.5 CTC PLUGIN
+================================================================
+
+----------------------------------------------------------------
+ ABOUT THE PATCH 
+----------------------------------------------------------------
+* Setup CTC Plugin
+
+
+----------------------------------------------------------------
+ SERVER UPDATE: 
+----------------------------------------------------------------
+01. Copy patch "{PATCH_DIR}/workspace/" folder to "{ETRACS_SERVER}" folder. 
+    Overwrite and merge existing files and folders. 
+
+
+02. Go to "{ETRACS_SERVER}/workspace/web/resources/downloads/modules/" folder 
+
+    05.01 Edit the file "updates.xml" 
+
+    05.02 Register the following jar file: 
+
+<module file="plugins/rameses-gov-etracs-ctc.jar" version="2.55"/>
+
+    05.03 Save and close editor 
+
+
+03. Open SQLYog/Navicat and do the following: 
+
+    03.01  Connect to main etracs database 
+    03.02  Execute the script "{PATCH_DIR}/res/scripts/mysql/patch_etracs.sql"
+
+
+04. Restart ETRACS Server 
+
+05. Close all etracs client platform 
+
+06. Open a new ETRACS client to download all new updates 
+
+   06.01  Login to ADMIN account with RULEMGMT.MASTER role 
+   06.02  Go to Main Menu-> Developer-> Rule Management-> Rulesets 
+   06.03  Import the file "{PATCH_DIR}/res/rules/ctcbilling_ruleset"
+
+   06.04  Go to Main Menu-> Rule Management-> Community Tax Certificate-> CTC Billing Rules
+   06.05  Click Tools-> Import Rules, import the file "{PATCH_DIR}/res/rules/ctcbilling_rule"
+   06.06  Close CTC Billing Rules 
+   06.07  Re-open CTC Billing Rules 
+   06.08  Select Summary from Rule Group 
+   06.09  Open each rule and remap the accounts and then deploy. 
+
+07. Monitoring of the new updates...
