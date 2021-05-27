@@ -58,7 +58,7 @@ entity.app.context=etracs25
 	<module file="custom/gov-lgu-ddn-consolidationsummaryreportmodified.jar" version="2.55"/>
 
 	<!-- core -->
-	<module file="core/osiris2-client-themes.jar" version="2.51"/>
+	<module file="core/osiris2-client-themes.jar" version="2.52"/>
 	<module file="core/osiris2-client-ui.jar" version="2.51"/>
 	<module file="core/osiris2-draw.jar" version="2.51"/>
 	<module file="core/osiris2-framework.jar" version="2.51"/>
@@ -108,7 +108,7 @@ entity.app.context=etracs25
 
 	<!-- bpls -->
 	<!-- <module file="bpls/rameses-gov-etracs-bpls05212021.jar" version="2.54"/> -->
-	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.51"/>
+	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.52"/>
 	<module file="bpls/rameses-gov-etracs-bpls-reports.jar" version="2.51"/>
 	<module file="bpls/rameses-gov-etracs-bpls-ceo.jar" version="2.51"/>
 
