@@ -7,6 +7,9 @@ class FAASSupportService
 	@Env
 	def env 
 
+	@Service("Var")
+	def var;
+
 	@ActiveDB('faas_support')
 	def em 
 
@@ -43,8 +46,17 @@ class FAASSupportService
 	@DataContext('faas_list')
 	def faaslistDb 
 
+	@DataContext('rptledger')
+	def em_rptledger
+
+	@DataContext('rptledger_faas')
+	def em_rptledger_faas
+
 	@Service('FAASStewardshipService')
 	def stewardshipSvc
+
+	@Service("PersistenceService")
+	def persistence
 
 
 	@ProxyMethod
@@ -217,22 +229,28 @@ class FAASSupportService
 
 	@ProxyMethod
 	public def deleteApprovedFaas( params ) {
-		if (!params.tdno) 
+		if (!params.tdno) {
 			return
+		}
 
 		def faas = faasSvc.getFaasByTdNo(params.tdno)
-		if (!faas)
+		if (!faas) {
 			throw new Exception('FAAS does not exist.')
+		}
 		
-		if (util.toBoolean(faas.datacapture, true) ==  false )
-			throw new Exception('Cannot delete FAAS. Only data captured record is allowed.')
+		if (util.toBoolean(faas.datacapture, true) ==  false ) {
+			def msg = 'The FAAS was processed online and cannot be deleted.\n'
+			msg += "Only manually captured record is allowed."
+			throw new Exception(msg)
+		}
 
 		checkPaymentMade(faas)
 		checkExistingImprovements(faas)
 
 		def ledger = em.findLedgerByFaasId(faas)
 		if (ledger){
-			ledgerSvc.deleteLedger(ledger)
+			ledger._schemaname = "rptledger";
+			persistence.removeEntity(ledger)
 		}
 
 		faas.allowdelete = true 
@@ -241,19 +259,32 @@ class FAASSupportService
 	}
 
 	void checkPaymentMade(faas){
-		def pmt = em.findOnlinePaymentByFaas(faas)
-		if (pmt)
-			throw new Exception('Cannot delete FAAS. Online payment has already been made.')
+		if (util.isTrue(var.faas_force_delete_current_record)) {
+			def rptledger = em_rptledger.select('objid').find([faasid: faas.objid]).first()
+			if (rptledger) {
+				em_rptledger.find([objid: rptledger.objid]).update([faasid: null])
+				em_rptledger_faas.find([rptledgerid: rptledger.objid]).update([faasid: null])
+			}
+		} else {
+			def pmt = em.findOnlinePaymentByFaas(faas)
+			if (pmt) {
+				throw new Exception('Cannot delete FAAS. Payment has already been made.')
+			}
+		}
 	}
 
 
 	void checkExistingImprovements(faas){
-		if ( ! faas.rpu.rputype.equalsIgnoreCase('land'))
+		if ( ! faas.rpu.rputype.equalsIgnoreCase('land')) {
 			return 
+		}
 
 		def improvements = em.findExistingImprovements(faas)
-		if (improvements)
-			throw new Exception('Cannot delete FAAS. It is already referenced by improvements.')
+		if (improvements) {
+			def msg = 'The FAAS is already referenced by improvements and cannot be deleted.\n'
+			msg += 'You may delete all improvements first and then perform the transaction again.'
+			throw new Exception(msg)
+		}
 	}
 
 	@ProxyMethod

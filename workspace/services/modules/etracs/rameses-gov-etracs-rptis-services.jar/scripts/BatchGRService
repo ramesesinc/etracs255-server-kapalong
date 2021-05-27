@@ -57,6 +57,7 @@ public class BatchGRService
         entity.effectivityyear = pdate.year + 1
         entity.effectivityqtr = 4
         entity.originlgu = (entity.originlgu ?entity.originlgu : [objid: env.ORGID])
+        entity.section = entity.section ? entity.section : '%'
         entity = em_batchgr.create(entity)
 
         entity.lguid = entity.lgu.objid
@@ -331,6 +332,12 @@ public class BatchGRService
     @ProxyMethod
     public def getCounts(entity){
         def cnt = em_batchgr.findCounts(entity)
+        if (cnt.count == null) {
+            cnt.count = 0
+            cnt.revised = 0
+            cnt.currentcnt = 0
+            cnt.error = 0
+        }
         cnt.current = cnt.currentcnt
         return cnt 
     }
@@ -370,9 +377,12 @@ public class BatchGRService
 
     void deleteRevisedFaases(entity) {
     	em_batchgr_item.where('parent_objid = :objid and newfaasid is not null', entity)
+            .orderBy("pin, suffix DESC")
     		.list().each {
     			faasSvc.deleteFaasById(it.newfaasid)
     		}
+
+        txnRefSvc.delete(entity.objid);
     }
 
     void createItemsTxnRef(entity) {
@@ -397,6 +407,7 @@ public class BatchGRService
     			em_faas_list.find([objid: it.newfaasid]).update(updateInfo)
     		}
     		em_batchgr_item.delete(it)
+            txnRefSvc.deleteByObjid(it.parent.objid, it.objid)
     	}
     	
     }

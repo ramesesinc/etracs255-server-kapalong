@@ -131,3 +131,41 @@ where rp.barangayid LIKE $P{barangayid}
 	${starttdnofilter}
 	${endtdnofilter}
 order by f.tdno 
+
+
+[getNoticesByRef]
+select a.objid, a.txnno, f.tdno
+from assessmentnotice a 
+	inner join assessmentnoticeitem i on a.objid = i.assessmentnoticeid
+	inner join faas f on i.faasid = f.objid 
+where i.faasid in (
+	select newfaasid from subdividedland where subdivisionid = $P{objid}
+	union 
+	select newfaasid from subdivisionaffectedrpu where subdivisionid = $P{objid}
+	union 
+	select newfaasid from consolidation where objid = $P{objid}
+	union 
+	select newfaasid from consolidationaffectedrpu where consolidationid = $P{objid}
+	union 
+	select newfaasid from batchgr_item where parent_objid = $P{objid}
+	union 
+	select newfaas_objid from resection_item where parent_objid = $P{objid}
+)
+order by f.tdno
+
+
+[getFaasesForNoaByRef]
+select x.objid 
+from (
+	select newfaasid as objid from subdividedland where subdivisionid = $P{objid}
+	union 
+	select newfaasid as objid from subdivisionaffectedrpu where subdivisionid = $P{objid}
+	union 
+	select newfaasid as objid  from consolidation where objid = $P{objid}
+	union 
+	select newfaasid as objid  from consolidationaffectedrpu where consolidationid = $P{objid}
+	union 
+	select newfaasid as objid  from batchgr_item where parent_objid = $P{objid}
+	union 
+	select newfaas_objid as objid  from resection_item where parent_objid = $P{objid}
+)x 

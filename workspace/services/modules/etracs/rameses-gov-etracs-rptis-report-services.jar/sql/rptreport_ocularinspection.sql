@@ -39,3 +39,15 @@ SELECT
 FROM examiner_finding ef 
 	inner join subdivision c on ef.parent_objid = c.objid 
 WHERE ef.objid = $P{objid}
+
+UNION 
+
+SELECT 
+	'batchgr' as doctype,
+	ef.*,
+	'' as owner_name, '' as titleno, '' as fullpin,
+	'' as cadastrallotno, 0.0 as totalareaha,
+	'' as barangay_name, '' as barangayid, '' as barangay_parentid, '' as purok, '' as street
+FROM examiner_finding ef 
+	inner join batchgr c on ef.parent_objid = c.objid 
+WHERE ef.objid = $P{objid}

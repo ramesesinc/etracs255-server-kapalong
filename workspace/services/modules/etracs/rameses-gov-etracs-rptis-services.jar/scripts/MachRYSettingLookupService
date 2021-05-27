@@ -32,21 +32,22 @@ public class MachRYSettingLookupService
                 .setParameter('previd', previd).singleResult
     }
 
-    @ProxyMethod
+     @ProxyMethod
     public def lookupMachineSmvs(params) {
         params.searchtext = (params.searchtext ? params.searchtext : '') + '%'
         def filters = []
         if (params.ry) {
-            filters << '(rs.ry is null OR rs.ry = $P{ry})'
+            filters << '(rs.ry = $P{ry} or rs.ry is null)'
         }
         if (params.lguid) {
-            filters << '(l.lguid is null OR l.lguid = $P{lguid})'
+            filters << '(l.lguid = $P{lguid} or l.lguid is null)'
         }
 
         params.filters = ''
         if (filters) {
             params.filters = ' AND ' + filters.join(' AND ')
         }
+        println "params => " + params;
 
         def list = em_db.getMachineSmvs(params)
         return filterByBarangay(params, list)   

@@ -55,9 +55,15 @@ public class LandRYSettingService
     public def getList( params ) {
         def list = []
         if (params.searchtext) 
-            list = em_land.orderBy('ry').find([ry:params.searchtext]).list()
+            list = em_land.orderBy('ry')
+                .find([ry:params.searchtext])
+                .limit(params._start, params._limit)
+                .list()
         else 
-            list = em_land.where('1=1').orderBy('ry').list()
+            list = em_land.where('1=1')
+                .orderBy('ry')
+                .limit(params._start, params._limit)
+                .list()
         return list 
     }
 

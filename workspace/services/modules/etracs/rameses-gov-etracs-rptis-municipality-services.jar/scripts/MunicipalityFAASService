@@ -29,6 +29,18 @@ class MunicipalityFAASService
         return faas 
     }
 
+    @ProxyMethod
+    public def resendToProvince( faas ) {
+        faas.datacapture = faas.datacapture == 1
+        return faas
+    }
+
+    @ProxyMethod
+    public def resendRequirements( faas ) {
+        faas.datacapture = faas.datacapture == 1
+        return faas
+    }
+
 
     @ProxyMethod
     public def approveFaas(entity){

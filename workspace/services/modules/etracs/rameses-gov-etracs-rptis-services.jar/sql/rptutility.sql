@@ -44,11 +44,19 @@ update rpu set
 where objid=$P{rpuid}
 
 
+[modifySubLedgerPin]
+update rptledger rl, rptledger_subledger sl set 
+  fullpin = concat($P{newpin}, '-', sl.subacctno),
+  barangayid = $P{barangayid}
+where faasid = $P{faasid}
+and rl.objid = sl.parent_objid
+
 [modifyLedgerPin]
 update rptledger set 
   fullpin=$P{newpin},
   barangayid = $P{barangayid}
 where faasid = $P{faasid}
+and not exists(select * from rptledger_subledger where objid = rptledger.objid)
 
 [modifyFaasPin]
 update faas set 

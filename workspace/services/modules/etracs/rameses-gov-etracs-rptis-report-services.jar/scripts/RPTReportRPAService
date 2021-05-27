@@ -45,14 +45,22 @@ class RPTReportRPAService
 		def restrictions = []
 
 		if (params.reporttype.type == 'standard'){
-			taxableclasses = buildTaxableClasses(em.getTaxables(params), params)
+			if (params.distributiontype == 'DOMINANT') {
+				taxableclasses = buildTaxableClasses(em.getTaxables(params), params)
+			} else {
+				taxableclasses = buildTaxableClasses(em.getTaxablesMixUse(params), params)
+			}
 			exemptclasses = buildExemptClasses(em.getExempts(params), params)	
 		}
 		else if (params.reporttype.type == 'lift'){
 			if (util.toBoolean(var.assessor_report_lift_show_net, true)) {
 				params.filter += " AND not exists(select * from faas_restriction where parent_objid = f.objid and state = 'ACTIVE') "
 			}
-			taxableclasses = buildTaxableClasses(em.getLiftTaxables(params), params)
+			if (params.distributiontype == 'DOMINANT') {
+				taxableclasses = buildTaxableClasses(em.getLiftTaxables(params), params)
+			} else {
+				taxableclasses = buildTaxableClasses(em.getLiftTaxablesMixUse(params), params)
+			}
 			exemptclasses = buildExemptClasses(em.getLiftExempts(params), params)	
 		}
 		else if (params.reporttype.type == 'lift_restriction'){
@@ -142,9 +150,9 @@ class RPTReportRPAService
 		taxableclasses.add( taxableclasses.indexOf( firstspecial), [objid:'SPECIAL', name:'SPECIAL', special:0] )
 		
 		taxableclasses.each{ item ->
-			def taxable = taxables.find{ it.classid == item.objid }
-			if( taxable ) {
-				item.putAll( taxable )
+			def taxablesItems = taxables.findAll{ it.classid == item.objid }
+			if( taxablesItems ) {
+				buildClassInfo(item, taxablesItems)
 			}
 			item.taxability = 'TAXABLE' 
 			if( item.special == 0 ) {
@@ -212,17 +220,87 @@ class RPTReportRPAService
 
     @ProxyMethod
     public def getClassifications(){
-    	return 	propertyclassification.find([state:'APPROVED']).orderBy('orderno').list()
+    	def classifications = propertyclassification.find([state:'APPROVED']).orderBy('orderno').list()
+    	initList(classifications)
+    	return classifications
     }
 
     @ProxyMethod
     public def getExemptionTypes(  ) {
-    	return 	exemptiontype.find([state:'APPROVED']).orderBy('orderno').list()
+    	def exemptions = exemptiontype.find([state:'APPROVED']).orderBy('orderno').list()
+    	initList(exemptions)
+    	return exemptions
     }
 
     @ProxyMethod
     public def getBarangays(params){
     	return lguSvc.lookupBarangaysByRootId(params.lguid)	
+    }
+
+	void buildClassInfo(classification, list) {
+		classification.putAll(list[0])
+		if (list.size() > 1) {
+			for (def idx = 1; idx < list.size(); idx++ ) {
+				def item = list[idx]
+				classification.rpucount += item.rpucount ? item.rpucount : 0
+				classification.countland += item.countland ? item.countland : 0
+				classification.countbldg += item.countbldg ? item.countbldg : 0
+				classification.countmach += item.countmach ? item.countmach : 0
+				classification.countother += item.countother ? item.countother : 0
+				classification.counttotal += item.counttotal ? item.counttotal : 0
+				classification.areasqm += item.areasqm ? item.areasqm : 0
+				classification.areaha += item.areaha ? item.areaha : 0
+				classification.landmv += item.landmv ? item.landmv : 0
+				classification.bldgmv += item.bldgmv ? item.bldgmv : 0
+				classification.bldgmv175less += item.bldgmv175less ? item.bldgmv175less : 0
+				classification.bldgmvover175 += item.bldgmvover175 ? item.bldgmvover175 : 0
+				classification.machmv += item.machmv ? item.machmv : 0
+				classification.othermv += item.othermv ? item.othermv : 0
+				classification.totalmv += item.totalmv ? item.totalmv : 0
+				classification.landav += item.landav ? item.landav : 0
+				classification.bldgav += item.bldgav ? item.bldgav : 0
+				classification.bldgav175less += item.bldgav175less ? item.bldgav175less : 0
+				classification.bldgavover175 += item.bldgavover175 ? item.bldgavover175 : 0
+				classification.machav += item.machav ? item.machav : 0
+				classification.otherav += item.otherav ? item.otherav : 0
+				classification.totalav += item.totalav ? item.totalav : 0
+				classification.carpav += item.carpav ? item.carpav : 0
+				classification.litigationav += item.litigationav ? item.litigationav : 0
+				classification.otherrestrictionav += item.otherrestrictionav ? item.otherrestrictionav : 0
+				classification.totalrestrictionav += item.totalrestrictionav ? item.totalrestrictionav : 0
+			}
+		} 
+	}
+
+    void initList(list) {
+    	list.each {
+			it.rpucount = 0
+			it.countland = 0
+			it.countbldg = 0
+			it.countmach = 0
+			it.countother = 0
+			it.counttotal = 0
+			it.areasqm = 0
+			it.areaha = 0
+			it.landmv = 0
+			it.bldgmv = 0
+			it.bldgmv175less = 0
+			it.bldgmvover175 = 0
+			it.machmv = 0
+			it.othermv = 0
+			it.totalmv = 0
+			it.landav = 0
+			it.bldgav = 0
+			it.bldgav175less = 0
+			it.bldgavover175 = 0
+			it.machav = 0
+			it.otherav = 0
+			it.totalav = 0
+			it.carpav = 0
+			it.litigationav = 0
+			it.otherrestrictionav = 0
+			it.totalrestrictionav = 0
+    	}
     }
 
 

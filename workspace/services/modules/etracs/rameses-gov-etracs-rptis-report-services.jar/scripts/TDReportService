@@ -31,6 +31,9 @@ class TDReportService
 	@DataContext('faas_previous')
 	def em_faas_previous 
 
+	@DataContext('faas_backtax')
+	def em_faas_backtax
+
 
 	@ProxyMethod 
 	public def getFaasIds(params) {
@@ -111,6 +114,11 @@ class TDReportService
 		buildSignatories(td)
 
 		buildAdjustmentFactor(td)
+
+		td.backtaxes = em_faas_backtax
+						.find([faasid: faasid])
+						.orderBy('ry,tdno')
+						.list()
 
 		td.show_interim_watermark = util.toBoolean(var.show_interim_watermark, false)
 		td.esigned = adb.findEsigned(td) != null
@@ -378,7 +386,11 @@ class TDReportService
 				//cancel faas transaction
 				def reason = adb.findCancelFaasReason(td)
 				if (reason){
-					notes  = 'Cancelled due to ' + reason.reason + '.\n'
+					notes = '';
+					if (reason.cancelledbytdnos) {
+						notes  +=  'Cancelled By TD/ARP No. ' + td.cancelledbytdnos + '.\n' 
+					}
+					notes  += 'Cancelled due to ' + reason.reason + '.\n'
 					notes += 'Date Cancelled: ' + dtSvc.format('MMMMM dd, yyyy' ,reason.txndate) + '.  ' 
 				}
 				else{

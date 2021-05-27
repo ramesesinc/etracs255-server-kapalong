@@ -978,7 +978,11 @@ class SubdivisionService
 
     @ProxyMethod
     public def getAssistantInfo(user) {
-        return em_assist.find([assignee_objid: user.objid, taskstate: user.taskstate]).first()
+        return em_assist.find([
+            parent_objid: user.subdivisionid,
+            assignee_objid: user.objid, 
+            taskstate: user.taskstate
+        ]).first()
     }
 
     void validateAssistantParcel(land) {

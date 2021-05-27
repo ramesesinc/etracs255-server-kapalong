@@ -119,7 +119,8 @@ class LandTaxBuildDelinquencyService
 	@ProxyMethod
 	public def closeBuild(build){
 		def error = em_delinquency_error.find([ignored: 0]).first()
-		if (!error){
+		def completed = em_delinquency_barangay.where('count <> processed + ignored').first() == null 
+		if (completed && !error){
 			build.state = 'COMPLETED'	
 			em_delinquency.find([objid:build.objid]).update([state:build.state])
 		}

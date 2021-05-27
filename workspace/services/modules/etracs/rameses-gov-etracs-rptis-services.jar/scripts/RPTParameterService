@@ -17,6 +17,8 @@ class RPTParameterService
             [objid:'SYS_UNIT_VALUE', name:'SYS_UNIT_VALUE', caption:'SYSTEM UNIT VALUE', paramtype:'decimal'],
             [objid:'SYS_AREA', name:'SYS_AREA', caption:'SYSTEM AREA', paramtype:'decimal'],
             [objid:'SYS_ASSESSED_VALUE', name:'SYS_ASSESSED_VALUE', caption:'SYSTEM ASSESSED VALUE', paramtype:'decimal'],
+            [objid:'SYS_FLOOR_BASE_MARKET_VALUE', name:'SYS_FLOOR_BASE_MARKET_VALUE', caption:'SYSTEM FLOOR BASE MARKET VALUE', paramtype:'decimal'],
+            [objid:'SYS_FLOOR_MARKET_VALUE', name:'SYS_FLOOR_MARKET_VALUE', caption:'SYSTEM FLOOR MARKET VALUE', paramtype:'decimal'],
         ]
     }
 

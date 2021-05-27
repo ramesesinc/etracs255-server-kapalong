@@ -36,9 +36,6 @@ class FAASService
 	@DataContext('faas_task')
 	def em_faas_task 
 
-	@DataContext('faasupdate')
-	def em_faas_update
-
 	@DataContext('faas_restriction')
 	def em_restriction
 
@@ -289,7 +286,6 @@ class FAASService
 		txnRef.delete(faas.objid)
 		em_faas_signatory.delete(faas)
 		em_faas_task.find([refid:faas.objid]).delete()
-		em_faas_update.find([faasid:faas.objid]).delete()
 		em_stewardship.find([stewardrpumasterid:faas.rpu.rpumasterid]).delete()
 
 		def affectedrpus = em_faas.getAffectedRpus(faas)

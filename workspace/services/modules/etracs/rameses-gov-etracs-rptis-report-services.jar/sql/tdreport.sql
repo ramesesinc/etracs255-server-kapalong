@@ -463,7 +463,9 @@ order by f.tdno
 select 
 	ctd.name as reason,
 	cf.remarks, 
-	cf.txndate
+	cf.txndate,
+	cf.cancelledbytdnos,
+	cf.cancelledbypins
 from cancelledfaas cf 
 	inner join canceltdreason ctd on cf.reason_objid = ctd.objid 
 where cf.faasid = $P{objid}

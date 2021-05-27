@@ -169,8 +169,12 @@ class ConsolidationService
                 faasSvc.deleteFaasById(arpu.newfaasid)
 
             if (arpu.newrpuid) {
-                rpu = rpuSvc.openRpu([objid:arpu.newrpuid])
-                if (rpu ) rpuSvc.deleteRpu(rpu)
+                try {
+                    rpu = rpuSvc.openRpu([objid:arpu.newrpuid])
+                    if (rpu ) rpuSvc.deleteRpu(rpu)
+                } catch( e ) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -332,8 +336,6 @@ class ConsolidationService
 
     @ProxyMethod
     public void initApprove(consolidation) {
-        em.deleteConsolidatedPreviousFaas(consolidation)
-        em.insertConsolidatedPreviousFaas(consolidation)
     }
 
     @ProxyMethod

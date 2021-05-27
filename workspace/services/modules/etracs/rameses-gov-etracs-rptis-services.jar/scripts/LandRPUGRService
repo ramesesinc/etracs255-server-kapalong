@@ -84,11 +84,10 @@ class LandRPUGRService
 			def p = [:]
 			p.ry = rpu.ry 
 			p.lguid = rpu.rp.lguid 
-			p.classid = ld.actualuse.classification.objid 
-			p.classname = ld.actualuse.classification.name 
-			p.landspecificclassid = ld.landspecificclass.objid 
+			p.name = ld.actualuse.name 
+			p.code = ld.actualuse.code
 			def als = em.getRevisedAssessLevelsByClass(p)
-			if (als.size() == 1){
+			if (als.size() > 0){
 				al = als[0]
 			}
 		}

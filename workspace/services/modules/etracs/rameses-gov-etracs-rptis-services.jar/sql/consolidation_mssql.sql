@@ -388,10 +388,6 @@ WHERE s.objid = $P{consolidationid}
   AND f.state = 'PENDING' 
 
 
-[deletePreviousFaases]  
-DELETE FROM previousfaas WHERE faasid = $P{faasid}
-
-
 [deleteTasks]
 DELETE FROM consolidation_task WHERE refid = $P{objid}
 
@@ -459,19 +455,6 @@ from consolidation c
     inner join consolidation_task t on c.objid = t.refid 
 where c.objid = $P{objid}
   and t.state not like 'assign%'
-
-
-[deleteConsolidatedPreviousFaas]
-delete from previousfaas where faasid = $P{newfaasid} 
-
-
-[insertConsolidatedPreviousFaas]
-insert into previousfaas 
-	(faasid, prevfaasid)
-select c.newfaasid, cl.landfaasid 
-from consolidation c 
-	inner join consolidatedland cl on c.objid = cl.consolidationid 
-where consolidationid = $P{objid}	
 
 
 [getTasks]

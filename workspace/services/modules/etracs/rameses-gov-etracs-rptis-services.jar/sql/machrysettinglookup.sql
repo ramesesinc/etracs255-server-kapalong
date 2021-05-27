@@ -42,16 +42,20 @@ WHERE machassesslevelid = $P{machassesslevelid}
 
 
 [getMachineSmvs]
-SELECT
+SELECT 
 	m.*,
-	ms.expr,
-	ms.objid as smv_objid,
-	ms.expr as smv_expr,
-	ms.previd as smv_previd
+	xx.expr,
+	xx.objid AS smv_objid,
+	xx.expr AS smv_expr,
+	xx.previd AS smv_previd
 FROM machine m
-LEFT JOIN machine_smv ms ON m.objid = ms.machine_objid
-LEFT JOIN machrysetting rs ON ms.parent_objid = rs.objid 
-LEFT JOIN rysetting_lgu l ON rs.objid = l.rysettingid 
+LEFT JOIN 
+(SELECT ms.*
+	FROM machine_smv ms 
+	INNER JOIN machrysetting rs ON ms.parent_objid = rs.objid 
+	INNER JOIN rysetting_lgu l ON rs.objid = l.rysettingid 
+	WHERE 1=1 
+	${filters}
+)xx ON m.objid = xx.machine_objid
 WHERE (m.code LIKE $P{searchtext} OR m.name LIKE $P{searchtext})	
- ${filters}
-ORDER BY m.code 
+ORDER BY m.code

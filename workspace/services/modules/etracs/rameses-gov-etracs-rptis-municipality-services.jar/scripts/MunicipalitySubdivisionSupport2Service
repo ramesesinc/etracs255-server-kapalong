@@ -13,6 +13,11 @@ class MunicipalitySubdivisionSupport2Service
 	@Service('SubdivisionSupport2Service')
 	def supportSvc
 
+    /* intercepted by Subdivision Sync Facility */
+    @ProxyMethod
+    public def resendToProvince( subdivision ) {
+        return subdivision;
+    }
 
     @ProxyMethod
     public void submitToProvince( subdivision ) {
@@ -95,15 +100,21 @@ class MunicipalitySubdivisionSupport2Service
 
 
     @ProxyMethod 	
-	public void resubmitToProvince( subdivision ) {
+	public def resubmitToProvince( subdivision ) {
         subdivision._resubmitted = true 
         submitToProvince(subdivision)
+        return subdivision;
         println 'Resubmit Subdivision to province....'
 	}
 
     @ProxyMethod
     public void resubmitRequirements( subdivision ){
         sendRequirements(subdivision)
+    }
+
+    @ProxyMethod
+    public def resendRequirements( subdivision ){
+        return subdivision
     }
 
 }

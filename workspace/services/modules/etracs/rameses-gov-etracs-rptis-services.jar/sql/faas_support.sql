@@ -9,7 +9,7 @@ DELETE FROM faas_task WHERE refid = $P{objid}
 select f.objid, rl.objid as rptledgerid  
 from faas f 
     inner join rptledger rl on f.objid = rl.faasid 
-    inner join rptledger_payment rp on rl.objid = rp.rptledgerid
+    inner join rptpayment rp on rl.objid = rp.refid
 where f.objid = $P{objid}
 and rp.voided = 0 
 
@@ -17,13 +17,16 @@ and rp.voided = 0
 select objid from rptledger where faasid = $P{objid}
 
 [findExistingImprovements]
-select f.objid
-from faas f 
-	inner join rpu lr on f.rpuid = lr.objid 
-	inner join rpu ir on lr.realpropertyid = ir.realpropertyid
-where f.objid = $P{objid}
-and lr.rputype = 'land' 
-and ir.rputype <> 'land' 
+select i.objid 
+from faas_list i
+where i.realpropertyid in (
+	select f.realpropertyid
+	from faas_list f 
+	where f.objid = $P{objid}
+	and f.rputype = 'land' 
+) and i.rputype <> 'land'
+
+
 
 
 [findFaasById]

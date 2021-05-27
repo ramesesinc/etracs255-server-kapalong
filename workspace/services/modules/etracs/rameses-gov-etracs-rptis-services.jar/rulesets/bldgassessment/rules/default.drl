@@ -54,6 +54,8 @@ rule "calc-bldg-additional"
 		bindings.put("SYS_BASE_VALUE", BF.getBasevalue());
 		bindings.put("SYS_UNIT_VALUE", BF.getUnitvalue());
 		bindings.put("SYS_AREA", BF.getArea());
+		bindings.put("SYS_FLOOR_BASE_MARKET_VALUE", BF.getBasemarketvalue());
+		bindings.put("SYS_FLOOR_MARKET_VALUE", BF.getMarketvalue());
 		bindings.putAll(ADJ.getParams());
 
 		Map map = new HashMap();
@@ -79,6 +81,8 @@ rule "calc-bldg-adjustment"
 		bindings.put("SYS_BASE_VALUE", BF.getBasevalue());
 		bindings.put("SYS_UNIT_VALUE", BF.getUnitvalue());
 		bindings.put("SYS_AREA", BF.getArea());
+		bindings.put("SYS_FLOOR_BASE_MARKET_VALUE", BF.getBasemarketvalue());
+		bindings.put("SYS_FLOOR_MARKET_VALUE", BF.getMarketvalue());
 		bindings.putAll(ADJ.getParams());
 
 		Map map = new HashMap();

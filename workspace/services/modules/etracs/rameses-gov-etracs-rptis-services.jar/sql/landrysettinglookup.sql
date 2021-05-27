@@ -22,8 +22,7 @@ FROM landrysetting rs
 	INNER JOIN landassesslevel lal ON rs.objid = lal.landrysettingid 
 WHERE rs.ry = $P{ry}
   AND l.lguid = $P{lguid}
-  and lal.classification_objid = $P{classid}
-  and lal.name = $P{classname}
+  and (lal.name = $P{name} OR lal.code = $P{code})
 ORDER BY code 
 
 

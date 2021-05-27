@@ -156,6 +156,16 @@ class RPTAssessmentNoticeService
 		return  em.getApprovedFaasList([taxpayerid:taxpayerid])
 	}	
 
+	@ProxyMethod
+	public def getNoticesByRef(ref) {
+		return em.getNoticesByRef(ref)
+	}
+
+	@ProxyMethod
+	public def getFaasesForNoaByRef(ref) {
+		return em.getFaasesForNoaByRef(ref)
+	}
+
 	def getOrgId() {
 		def orgid = env.ORGID
 		if (!orgid) {

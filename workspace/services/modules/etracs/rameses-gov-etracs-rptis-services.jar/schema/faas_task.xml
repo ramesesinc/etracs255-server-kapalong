@@ -16,11 +16,6 @@
 		<field name="message"/>
 		<field name="signature"/>
 		<field name="returnedby" />
-		<complex name="actor" ref="sys_user" jointype="many-to-one" 
-			required="false" includedfields="username"
-		>
-			<key field="actor_objid"  target="objid" />
-		</complex>
 	</element>	
 
 	<element name="subtask" tablename="faas_subtask">
