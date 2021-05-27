@@ -1,0 +1,7 @@
+provider=fileupload
+host=107.21.113.74
+port=7000
+channel=06304
+downloadDir=c:/temp/fileserver/downloads
+uploadDir=c:/temp/fileserver/uploads
+debug=true
