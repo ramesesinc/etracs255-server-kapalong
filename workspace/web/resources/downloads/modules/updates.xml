@@ -1,6 +1,6 @@
 <app>
 <env>
-app.title=ETRACS 2.5 build 05 20200603 patch v255-03019-012 (Municipality Of Kapalong)
+app.title=ETRACS 2.5 build 05 20200605 patch v255-rptis-03029-newsync/transmittal-rptsync2-ledger-update (Municipality Of Kapalong)
 app.host=192.168.3.251:8070
 app.cluster=osiris3
 app.context=etracs25
@@ -10,7 +10,7 @@ readTimeout=300000
 connectionTimeout=5000
 filemgmt.enabled=false
 
-ws.host=192.168.3.251:8060
+ws.host=Server:8060
 #res.host=192.168.3.251
 
 app.custom=kapalong
@@ -25,7 +25,7 @@ entity.app.context=etracs25
 
 	<!-- custom main libraries -->
 	<module file="custom/gov-lgu-kapalong.jar" version="1.10"/>
-	<module file="custom/gov-lgu-ctc.jar" version="1.02"/>
+	<module file="custom/gov-lgu-ctc.jar" version="1.04"/>
 	<module file="custom/gov-lgu-ddn-rptis-report.jar" version="1.00"/>
  	<module file="custom/gov-lgu-ddn-rptis-landtax-taxclearance.jar" version="1.02"/>
 	<module file="custom/ddn-bpls-business-tax-billing-statement.jar" version="1.00"/>
@@ -36,10 +36,10 @@ entity.app.context=etracs25
 	<module file="custom/gov-lgu-ddn-realtytaxledgerbilling.jar" version="1.00"/>
 		
 	<!-- assessor custom report -->
-	<module file="custom/gov-lgu-ddn-faaslandmodified.jar" version="2.56"/>
-	<module file="custom/gov-lgu-ddn-faasmiscmodified.jar" version="2.56"/>
-	<module file="custom/gov-lgu-ddn-faasmachmodified.jar" version="2.58"/>
-	<module file="custom/gov-lgu-ddn-faasbldgmodified.jar" version="2.58"/>
+	<module file="custom/gov-lgu-ddn-faaslandmodified.jar" version="2.57"/>
+	<module file="custom/gov-lgu-ddn-faasmiscmodified.jar" version="2.57"/>
+	<module file="custom/gov-lgu-ddn-faasmachmodified.jar" version="2.60"/>
+	<module file="custom/gov-lgu-ddn-faasbldgmodified.jar" version="2.63"/>
 	<module file="custom/gov-lgu-ddn-tmcrmodified.jar" version="2.56"/>
 	<module file="custom/gov-lgu-ddn-taxdecmodified.jar" version="2.56"/>
 	<module file="custom/gov-lgu-ddn-noticeofcancellationreport.jar" version="2.56"/>
@@ -107,19 +107,20 @@ entity.app.context=etracs25
 	<module file="epayment/rameses-gov-epayment-report.jar" version="2.51"/>
 
 	<!-- bpls -->
-	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.51"/>
+	<!-- <module file="bpls/rameses-gov-etracs-bpls05212021.jar" version="2.54"/> -->
+	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.55"/>
 	<module file="bpls/rameses-gov-etracs-bpls-reports.jar" version="2.51"/>
 	<module file="bpls/rameses-gov-etracs-bpls-ceo.jar" version="2.51"/>
 
     <!-- rptis common -->
-	<module file="rptis/rameses-gov-etracs-rptis.jar" version="2.57"/>
-	<module file="rptis/rameses-gov-etracs-rptis-report.jar" version="2.58"/>
+	<module file="rptis/rameses-gov-etracs-rptis.jar" version="2.60"/>
+	<module file="rptis/rameses-gov-etracs-rptis-report.jar" version="2.59"/>
 	<module file="rptis/rameses-gov-etracs-rptis-landtax.jar" version="2.57"/>
 	<module file="rptis/rameses-gov-etracs-rptis-landtax-report.jar" version="2.57"/>
-	<module file="rptis/rameses-gov-etracs-rptis-sync.jar" version="2.60" />
+	<module file="rptis/rameses-gov-etracs-rptis-sync2.jar" version="2.64" />
 
     <!-- rptis lgu specific -->
-	<module file="rptis/rameses-gov-etracs-rptis-municipality.jar" version="2.56"/>
+	<module file="rptis/rameses-gov-etracs-rptis-municipality.jar" version="2.58"/>
 	<module file="rptis/rameses-gov-etracs-rptis-transmittal.jar" version="2.56"/>
 	<module file="rptis/rameses-gov-etracs-rptis-landtax-auction.jar" version="2.56" />
 
@@ -127,6 +128,6 @@ entity.app.context=etracs25
 	<module file="queue/rameses-queueing.jar" version="2.51"/> 
 
 	<!-- ctc -->
-	<module file="ctc/rameses-gov-etracs-ctc.jar" version="2.51" />	
+	<module file="ctc/rameses-gov-etracs-ctc.jar" version="2.53" />	
 </modules>
 </app>
