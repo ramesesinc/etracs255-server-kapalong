@@ -108,7 +108,7 @@ entity.app.context=etracs25
 
 	<!-- bpls -->
 	<!-- <module file="bpls/rameses-gov-etracs-bpls05212021.jar" version="2.54"/> -->
-	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.55"/>
+	<module file="bpls/rameses-gov-etracs-bpls.jar" version="2.51"/>
 	<module file="bpls/rameses-gov-etracs-bpls-reports.jar" version="2.51"/>
 	<module file="bpls/rameses-gov-etracs-bpls-ceo.jar" version="2.51"/>
 
