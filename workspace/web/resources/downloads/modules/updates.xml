@@ -48,7 +48,7 @@ entity.app.context=etracs25
 	<module file="custom/gov-lgu-ddn-assessmentrollexempt.jar" version="2.55"/> 
 	<module file="custom/gov-lgu-ddn-assessmentrollcontinuousexempt.jar" version="2.55"/>
 	<module file="custom/gov-lgu-ddn-assessmentrollcontinuoustaxable.jar" version="2.55"/>
-	<module file="custom/gov-lgu-ddn-reportonrealpropertyassessment.jar" version="2.55"/>
+	<module file="custom/gov-lgu-ddn-reportonrealpropertyassessment.jar" version="2.56"/>
 	<module file="custom/gov-lgu-ddn-monthlyassessmentreport.jar" version="2.55"/>
 	<module file="custom/gov-lgu-ddn-accomplishmentrealpropertyassessmentreport.jar" version="2.55"/>
 	<module file="custom/gov-lgu-ddn-land_specificclass_listing.jar" version="2.55"/>
