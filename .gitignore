@@ -4,5 +4,6 @@
 .osiris_pid
 .shutdown_pid
 _custom
+_tmp
 Thumbs.db
 *.rar
